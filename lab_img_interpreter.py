@@ -29,7 +29,7 @@ st.markdown(
     for best view of the app, please **zoom-out** the browser to **75%**.
     ''',
     unsafe_allow_html=True)
-st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic image interpreter**', icon="ℹ️")
+st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
 #st.divider()
 #----------------------------------------
 
@@ -77,16 +77,17 @@ def draw_contours(image, properties, diameters):
 uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
 st.divider()
 
-image = np.array(Image.open(uploaded_file))
-labeled_image = process_image(image)
-diameters, properties = calculate_diameters(labeled_image)
-output_image = draw_contours(image, properties, diameters)
+
 
 if uploaded_file is not None:
 
     col1, col2 = st.columns((0.7,0.3))
     with col1:
 
+        image = np.array(Image.open(uploaded_file))
+        labeled_image = process_image(image)
+        diameters, properties = calculate_diameters(labeled_image)
+        output_image = draw_contours(image, properties, diameters)
         st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
 
         with col2:
