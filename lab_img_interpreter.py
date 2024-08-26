@@ -1,57 +1,59 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import cv2
 from PIL import Image, ImageDraw
-from skimage import color, filters, measure, morphology, io
 
 def process_image(image):
-    # Convert image to grayscale
-    gray_image = color.rgb2gray(image)
+    # Convert the image to grayscale
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
-    # Apply Gaussian filter to reduce noise
-    blurred_image = filters.gaussian(gray_image, sigma=2.0)
+    # Apply Gaussian blur to reduce noise
+    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
     
     # Apply Otsu's thresholding
-    thresh = filters.threshold_otsu(blurred_image)
-    binary_image = blurred_image < thresh
+    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     
-    # Remove small objects and noise
-    cleaned_image = morphology.remove_small_objects(binary_image, min_size=100)
+    # Remove small objects and noise using morphological operations
+    kernel = np.ones((3,3), np.uint8)
+    cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
     
-    # Label the connected regions in the binary image
-    labeled_image = measure.label(cleaned_image)
+    # Find contours of the objects
+    contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    return labeled_image
+    return contours
 
-def calculate_diameters(labeled_image):
+def calculate_diameters(contours):
     diameters = []
-    properties = measure.regionprops(labeled_image)
-    for prop in properties:
+    for contour in contours:
         # Calculate the equivalent diameter
-        diameter = prop.equivalent_diameter
+        area = cv2.contourArea(contour)
+        diameter = np.sqrt(4 * area / np.pi)
         diameters.append(diameter)
-    return diameters, properties
+    return diameters
 
-def draw_contours(image, properties, diameters):
-    output = Image.fromarray((image * 255).astype(np.uint8))
-    draw_output = ImageDraw.Draw(output)
-    for prop, diameter in zip(properties, diameters):
-        y, x = prop.centroid
-        radius = diameter / 2
+def draw_contours(image, contours, diameters):
+    output_image = image.copy()
+    for contour, diameter in zip(contours, diameters):
+        # Get the centroid of the contour
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+        else:
+            cX, cY = 0, 0
         
-        # Draw the circle
-        draw_output.ellipse(
-            [(x - radius, y - radius), (x + radius, y + radius)], 
-            outline="green", width=2
-        )
+        # Draw the contour
+        cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)
         
         # Draw the diameter text
-        draw_output.text((x - 20, y - 20), f'{int(diameter)} px', fill="red")
+        cv2.putText(output_image, f'{int(diameter)} px', (cX - 20, cY - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     
-    return output
+    return output_image
 
 def main():
-    st.title("Molecule Counter and Diameter Measurement")
+    st.title("Molecule Counter and Diameter Measurement with OpenCV")
     
     # Load the image
     uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
@@ -60,13 +62,13 @@ def main():
         image = np.array(Image.open(uploaded_file))
         
         # Process the image to find contours
-        labeled_image = process_image(image)
+        contours = process_image(image)
         
         # Calculate diameters of the molecules
-        diameters, properties = calculate_diameters(labeled_image)
+        diameters = calculate_diameters(contours)
         
         # Draw contours and diameters on the image
-        output_image = draw_contours(image, properties, diameters)
+        output_image = draw_contours(image, contours, diameters)
         
         # Display the processed image with contours
         st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
