@@ -12,3 +12,4 @@ streamlit-image-comparison
 streamlit_cropper
 #------------------------
 scikit-image
+opencv-python-headless
