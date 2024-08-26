@@ -1,5 +1,6 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 from PIL import Image, ImageDraw
 from skimage import color, filters, measure, morphology
 
