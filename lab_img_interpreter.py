@@ -2,27 +2,8 @@ import streamlit as st
 import cv2
 import numpy as np
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageDraw
 from io import BytesIO
-
-def remove_background(image):
-    # Convert image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Apply a Gaussian blur to smooth the image and reduce noise
-    blurred = cv2.GaussianBlur(gray, (21, 21), 0)
-    
-    # Apply Otsu's thresholding to create a binary mask
-    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    
-    # Use morphological operations to clean the mask and remove noise
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    
-    # Apply the mask to the image to remove the background
-    masked_image = cv2.bitwise_and(image, image, mask=mask)
-    
-    return masked_image, mask
 
 def process_image(image):
     # Convert image to grayscale
@@ -85,7 +66,7 @@ def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
 def main():
-    st.title("Molecule Analyzer with Background Removal")
+    st.title("Molecule Analyzer")
 
     uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
 
@@ -93,17 +74,14 @@ def main():
         # Load the image
         image = np.array(Image.open(uploaded_file))
         
-        # Remove the background
-        masked_image, mask = remove_background(image)
-        
         # Process the image to find contours
-        contours, binary_image = process_image(masked_image)
+        contours, binary_image = process_image(image)
         
         # Calculate diameters of the molecules
         diameters = calculate_diameters(contours)
         
         # Draw contours and diameters on the image
-        output_image = draw_contours(masked_image, contours, diameters)
+        output_image = draw_contours(image, contours, diameters)
         
         # Calculate gap area, count gaps, and find max/min gap
         total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
