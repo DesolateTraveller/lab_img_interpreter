@@ -120,6 +120,7 @@ if uploaded_file is not None:
             st.write("**Diameter Statistics:**")
             st.write(f"Maximum Diameter: **{max_diameter:.2f}** px")
             st.write(f"Minimum Diameter: **{min_diameter:.2f}** px")
+            st.write(f"No of Molecules: **{df.shape[0]}**")
 
             st.divider()
 
