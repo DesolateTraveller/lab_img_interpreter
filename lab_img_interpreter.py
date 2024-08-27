@@ -50,9 +50,16 @@ def calculate_gaps(binary_image):
     contours, _ = cv2.findContours(inverted_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     gap_areas = [cv2.contourArea(contour) for contour in contours]
+    
+    if gap_areas:
+        max_gap = max(gap_areas)
+        min_gap = min(gap_areas)
+    else:
+        max_gap = min_gap = 0
+    
     total_gap_area = sum(gap_areas)
     
-    return total_gap_area, len(contours)
+    return total_gap_area, len(contours), max_gap, min_gap
 
 def main():
     st.title("Molecule Analyzer")
@@ -72,8 +79,8 @@ def main():
         # Draw contours and diameters on the image
         output_image = draw_contours(image, contours, diameters)
         
-        # Calculate gap area and count gaps
-        total_gap_area, gap_count = calculate_gaps(binary_image)
+        # Calculate gap area, count gaps, and find max/min gap
+        total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
         
         # Display the processed image with contours
         st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
@@ -95,9 +102,12 @@ def main():
         st.write("**Diameters of detected molecules (in pixels):**")
         st.dataframe(df.style.highlight_max(subset=['Diameter (px)'], color='lightgreen').highlight_min(subset=['Diameter (px)'], color='lightcoral').set_properties(**{'text-align': 'center'}), width=1000, height=600)
         
-        # Display the total gap area and count of gaps
+        # Display the total gap area, count of gaps, and max/min gap areas
+        st.write("**Gap Statistics:**")
         st.write(f"**Total Gap Area:** {total_gap_area:.2f} px²")
         st.write(f"**Total Number of Gaps:** {gap_count}")
+        st.write(f"**Maximum Gap Area:** {max_gap:.2f} px²")
+        st.write(f"**Minimum Gap Area:** {min_gap:.2f} px²")
 
 if __name__ == "__main__":
     main()
