@@ -91,7 +91,7 @@ def calculate_gaps(binary_image):
 #---------------------------------------------------------------------------------------------------------------------------------
 
 uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
-st.divider()
+#st.divider()
 
 if uploaded_file is not None:
 
@@ -124,10 +124,10 @@ if uploaded_file is not None:
             st.divider()
 
             st.write("**Gap Statistics:**")
-            st.write(f"**Total Gap Area:** {total_gap_area:.2f} px²")
-            st.write(f"**Total Number of Gaps:** {gap_count}")
-            st.write(f"**Maximum Gap Area:** {max_gap:.2f} px²")
-            st.write(f"**Minimum Gap Area:** {min_gap:.2f} px²")
+            st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
+            st.write(f"Total Number of Gaps: **{gap_count}**")
+            st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
+            st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
 
             st.divider()
             st.write("**Diameters of detected molecules (in pixels):**")
