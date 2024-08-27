@@ -128,7 +128,7 @@ if uploaded_file is not None:
             diameters = calculate_diameters(contours)
             output_image = draw_contours(image, contours, diameters)
             total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-            st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
+            st.image(output_image, caption=f"**Detected Molecules: {len(diameters)}**", use_column_width=True)
 
             with col2:
 
@@ -176,4 +176,4 @@ if uploaded_file is not None:
         with col1:
 
             masked_image, mask = remove_background(output_image)
-            st.image(output_image, use_column_width=True)
+            st.image(masked_image,caption="**Masked Image**", use_column_width=True)
