@@ -43,9 +43,10 @@ def process_image(image):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
     _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    kernel = np.ones((3,3), np.uint8)
-    cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
-    contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    #kernel = np.ones((3,3), np.uint8)
+    #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
+    #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours, binary_image
 
 @st.cache_data(ttl="2h")
@@ -99,7 +100,7 @@ if uploaded_file is not None:
 
         st.subheader("Image", divider='blue')
         image = np.array(Image.open(uploaded_file))
-        contours = process_image(image)
+        contours, binary_image = process_image(image)
         diameters = calculate_diameters(contours)
         output_image = draw_contours(image, contours, diameters)
         total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
@@ -135,5 +136,3 @@ if uploaded_file is not None:
                      .highlight_min(subset=['Diameter (px)'], color='lightcoral')
                      .format({'Diameter (px)': '{:.2f}'})
                      , use_container_width=True)
-
-
