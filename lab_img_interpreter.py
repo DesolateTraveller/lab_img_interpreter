@@ -100,6 +100,11 @@ if uploaded_file is not None:
             df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
         
             st.write("**Diameter Statistics:**")
+            st.write(f"Maximum Diameter: {max_diameter:.2f} px")
+            st.write(f"Minimum Diameter: {min_diameter:.2f} px")
+
+            st.divider()
+            st.write("**Diameters of detected molecules (in pixels):**")
             st.dataframe(df.style
                      .highlight_max(subset=['Diameter (px)'], color='lightgreen')
                      .highlight_min(subset=['Diameter (px)'], color='lightcoral')
