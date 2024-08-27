@@ -190,4 +190,5 @@ if uploaded_file is not None:
                 st.divider()
 
                 st.write("**clusters:**")
-                st.DataFrame({"Diameter (px)": diameters,"Cluster": clusters}, use_container_width=True)
+                df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
+                st.dataframe(df_c, use_container_width=True)
