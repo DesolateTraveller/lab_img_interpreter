@@ -41,8 +41,8 @@ st.info('**A lightweight image-processing streamlit app that interprets the labo
 @st.cache_data(ttl="2h")
 def process_image(image):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)                                     # Apply Gaussian blur to reduce noise
+    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # Apply Otsu's thresholding
     #kernel = np.ones((3,3), np.uint8)
     #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
     #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -86,6 +86,9 @@ def calculate_gaps(binary_image):
     total_gap_area = sum(gap_areas)
     return total_gap_area, len(contours), max_gap, min_gap
 
+@st.cache_data(ttl="2h")
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Main app
 #---------------------------------------------------------------------------------------------------------------------------------
@@ -110,7 +113,7 @@ if uploaded_file is not None:
         col1, col2 = st.columns((0.7,0.3))
         with col1:
 
-            st.subheader("Image", divider='blue')
+            #st.subheader("Image", divider='blue')
             image = np.array(Image.open(uploaded_file))
             contours, binary_image = process_image(image)
             diameters = calculate_diameters(contours)
@@ -120,7 +123,7 @@ if uploaded_file is not None:
 
             with col2:
 
-                st.subheader("Statistics", divider='blue')
+                #st.subheader("Statistics", divider='blue')
         
                 df = pd.DataFrame(diameters, columns=["Diameter (px)"])
                 max_diameter = df["Diameter (px)"].max()
@@ -149,3 +152,8 @@ if uploaded_file is not None:
                      .highlight_min(subset=['Diameter (px)'], color='lightcoral')
                      .format({'Diameter (px)': '{:.2f}'})
                      , use_container_width=True)
+                
+                st.divider()
+                csv = convert_df_to_csv(df)
+                st.download_button(label="Download data as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
+
