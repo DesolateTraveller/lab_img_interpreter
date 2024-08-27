@@ -1,179 +1,90 @@
-#---------------------------------------------------------------------------------------------------------------------------------
-### Authenticator
-#---------------------------------------------------------------------------------------------------------------------------------
 import streamlit as st
-#---------------------------------------------------------------------------------------------------------------------------------
-### Import Libraries
-#---------------------------------------------------------------------------------------------------------------------------------
-
-#----------------------------------------
 import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-#----------------------------------------
 import cv2
-from PIL import Image, ImageDraw
-from skimage import color, filters, measure, morphology
-#---------------------------------------------------------------------------------------------------------------------------------
-### Title and description for your Streamlit app
-#---------------------------------------------------------------------------------------------------------------------------------
-st.set_page_config(page_title="Lab Image Interpreter | v0.1",
-                    layout="wide",
-                    page_icon="🖼️",            
-                    initial_sidebar_state="collapsed")
-#----------------------------------------
-st.title(f""":rainbow[Lab Image Interpreter]""")
-st.markdown(
-    '''
-    Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
-    for best view of the app, please **zoom-out** the browser to **75%**.
-    ''',
-    unsafe_allow_html=True)
-st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
-#st.divider()
-#----------------------------------------
+from sklearn.cluster import KMeans
+import pandas as pd
+from PIL import Image
+import io
 
-#---------------------------------------------------------------------------------------------------------------------------------
-### Functions & Definitions
-#---------------------------------------------------------------------------------------------------------------------------------
-
+# Function to remove background
 def remove_background(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (21, 21), 0)
-    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    kernel = np.ones((1, 1), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
-    masked_image = cv2.bitwise_and(image, image, mask=mask)
-    return masked_image, mask
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    return thresh
 
-@st.cache_data(ttl="2h")
-def process_image(image):
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)                                     # Apply Gaussian blur to reduce noise
-    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # Apply Otsu's thresholding
-    #kernel = np.ones((3,3), np.uint8)
-    #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
-    #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return contours, binary_image
-
-@st.cache_data(ttl="2h")
-def calculate_diameters(contours):
+# Function to find contours and analyze molecules
+def analyze_molecules(image, min_size=100):
+    # Find contours
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     diameters = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        diameter = np.sqrt(4 * area / np.pi)
-        diameters.append(diameter)
-    return diameters
+    centers = []
 
-@st.cache_data(ttl="2h")
-def draw_contours(image, contours, diameters):
-    output_image = image.copy()
-    for contour, diameter in zip(contours, diameters):
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-        else:
-            cX, cY = 0, 0
-        cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)
-        cv2.putText(output_image, f'{int(diameter)} px', (cX - 20, cY - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    return output_image
+    for cnt in contours:
+        if cv2.contourArea(cnt) > min_size:
+            # Get the minimum enclosing circle
+            (x, y), radius = cv2.minEnclosingCircle(cnt)
+            diameter = radius * 2
+            diameters.append(diameter)
+            centers.append((int(x), int(y)))
 
-@st.cache_data(ttl="2h")
-def calculate_gaps(binary_image):
-    inverted_image = cv2.bitwise_not(binary_image)
-    contours, _ = cv2.findContours(inverted_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    gap_areas = [cv2.contourArea(contour) for contour in contours]
-    if gap_areas:
-        max_gap = max(gap_areas)
-        min_gap = min(gap_areas)
-    else:
-        max_gap = min_gap = 0
-    total_gap_area = sum(gap_areas)
-    return total_gap_area, len(contours), max_gap, min_gap
+    return diameters, centers, contours
 
-@st.cache_data(ttl="2h")
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
-#---------------------------------------------------------------------------------------------------------------------------------
-### Main app
-#---------------------------------------------------------------------------------------------------------------------------------
+# Function to segment molecules based on diameter
+def segment_molecules(diameters, centers, num_clusters=3):
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(np.array(diameters).reshape(-1, 1))
+    clusters = kmeans.labels_
+    return clusters
 
-uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
-#st.divider()
+# Main function to display the Streamlit app
+def main():
+    st.title("Molecule Analysis and Segmentation")
 
-if uploaded_file is not None:
+    uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
 
-#---------------------------------------------------------------------------------------------------------------------------------
-### Content
-#---------------------------------------------------------------------------------------------------------------------------------
-
-    tab1, tab2 = st.tabs(["**Information**","**Segmentation**"])
-
-#---------------------------------------------------------------------------------------------------------------------------------
-### Information
-#---------------------------------------------------------------------------------------------------------------------------------
-    
-    with tab1:
-    
-        col1, col2 = st.columns((0.7,0.3))
-        with col1:
-
-            #st.subheader("Image", divider='blue')
-            image = np.array(Image.open(uploaded_file))
-            contours, binary_image = process_image(image)
-            diameters = calculate_diameters(contours)
-            output_image = draw_contours(image, contours, diameters)
-            total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-            st.image(output_image, caption=f"**Detected Molecules: {len(diameters)}**", use_column_width=True)
-
-            with col2:
-
-                #st.subheader("Statistics", divider='blue')
+    if uploaded_file is not None:
+        # Load and preprocess the image
+        image = np.array(Image.open(uploaded_file))
+        original_image = image.copy()
+        processed_image = remove_background(image)
         
-                df = pd.DataFrame(diameters, columns=["Diameter (px)"])
-                max_diameter = df["Diameter (px)"].max()
-                min_diameter = df["Diameter (px)"].min()
-
-                df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
-                df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+        # Analyze molecules
+        diameters, centers, contours = analyze_molecules(processed_image)
         
-                st.write("**Diameter Statistics:**")
-                st.write(f"Maximum Diameter: **{max_diameter:.2f}** px")
-                st.write(f"Minimum Diameter: **{min_diameter:.2f}** px")
-                st.write(f"No of Molecules: **{df.shape[0]}**")
+        # Segment molecules based on diameter
+        clusters = segment_molecules(diameters, centers)
+        
+        # Create a dataframe for the results
+        df = pd.DataFrame({
+            "Diameter (px)": diameters,
+            "Cluster": clusters
+        })
+        
+        # Calculate the maximum and minimum diameters
+        max_diameter = df["Diameter (px)"].max()
+        min_diameter = df["Diameter (px)"].min()
+        
+        # Display the results
+        st.write("**Diameter Statistics:**")
+        st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter]}))
+        
+        st.write("**Diameters and Clusters of Detected Molecules (in pixels):**")
+        df_sorted = df.sort_values(by="Diameter (px)", ascending=False)
+        st.dataframe(df_sorted.style.highlight_max(subset=['Diameter (px)'], color='lightgreen')
+                               .highlight_min(subset=['Diameter (px)'], color='lightcoral'))
 
-                st.divider()
+        # Draw contours and cluster on the image
+        output_image = original_image.copy()
+        for i, cnt in enumerate(contours):
+            if cv2.contourArea(cnt) > 100:
+                cv2.drawContours(output_image, [cnt], -1, (0, 255, 0), 2)
+                cv2.putText(output_image, f"{clusters[i]}", centers[i], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+        
+        # Display the segmented image
+        st.image(output_image, caption="Segmented Molecules", use_column_width=True)
+        
+        # Add a download button for the dataframe
+        csv = df_sorted.to_csv(index=False).encode('utf-8')
+        st.download_button(label="Download Data as CSV", data=csv, file_name='molecule_data.csv', mime='text/csv')
 
-                st.write("**Gap Statistics:**")
-                st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
-                st.write(f"Total Number of Gaps: **{gap_count}**")
-                st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
-                st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
-
-                st.divider()
-                st.write("**Diameters of detected molecules (in pixels):**")
-                st.dataframe(df.style
-                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
-                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
-                     .format({'Diameter (px)': '{:.2f}'})
-                     , use_container_width=True)
-                
-                st.divider()
-                csv = convert_df_to_csv(df)
-                st.download_button(label="Download data as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
-
-#---------------------------------------------------------------------------------------------------------------------------------
-### Segmentation
-#---------------------------------------------------------------------------------------------------------------------------------
-    
-    with tab2:
-
-        col1, col2 = st.columns((0.7,0.3))
-        with col1:
-
-            masked_image, mask = remove_background(output_image)
-            st.image(masked_image,caption="**Masked Image**", use_column_width=True)
+if __name__ == "__main__":
+    main()
