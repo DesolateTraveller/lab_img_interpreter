@@ -187,4 +187,7 @@ if uploaded_file is not None:
                 num_clusters = st.slider("**Select no of clusters**", 1, 10, 5, 1)
                 clusters = segment_molecules(diameters, num_clusters)
 
-                st.write(pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters}), use_container_width=True)
+                st.divider()
+
+                st.write("**clusters:**")
+                st.DataFrame({"Diameter (px)": diameters,"Cluster": clusters}, use_container_width=True)
