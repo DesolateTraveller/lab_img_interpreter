@@ -1,159 +1,150 @@
-#---------------------------------------------------------------------------------------------------------------------------------
-### Authenticator
-#---------------------------------------------------------------------------------------------------------------------------------
 import streamlit as st
-#---------------------------------------------------------------------------------------------------------------------------------
-### Import Libraries
-#---------------------------------------------------------------------------------------------------------------------------------
-
-#----------------------------------------
+import cv2
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-#----------------------------------------
-import cv2
-from PIL import Image, ImageDraw
-from skimage import color, filters, measure, morphology
-#---------------------------------------------------------------------------------------------------------------------------------
-### Title and description for your Streamlit app
-#---------------------------------------------------------------------------------------------------------------------------------
-st.set_page_config(page_title="Lab Image Interpreter | v0.1",
-                    layout="wide",
-                    page_icon="🖼️",            
-                    initial_sidebar_state="collapsed")
-#----------------------------------------
-st.title(f""":rainbow[Lab Image Interpreter]""")
-st.markdown(
-    '''
-    Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
-    for best view of the app, please **zoom-out** the browser to **75%**.
-    ''',
-    unsafe_allow_html=True)
-st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
-#st.divider()
-#----------------------------------------
+from PIL import Image
+from io import BytesIO
 
-#---------------------------------------------------------------------------------------------------------------------------------
-### Functions & Definitions
-#---------------------------------------------------------------------------------------------------------------------------------
+def remove_background(image):
+    # Convert image to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Apply a Gaussian blur to smooth the image and reduce noise
+    blurred = cv2.GaussianBlur(gray, (21, 21), 0)
+    
+    # Apply Otsu's thresholding to create a binary mask
+    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # Use morphological operations to clean the mask and remove noise
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    
+    # Apply the mask to the image to remove the background
+    masked_image = cv2.bitwise_and(image, image, mask=mask)
+    
+    return masked_image, mask
 
-@st.cache_data(ttl="2h")
 def process_image(image):
+    # Convert image to grayscale
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)                                     # Apply Gaussian blur to reduce noise
-    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # Apply Otsu's thresholding
-    #kernel = np.ones((3,3), np.uint8)
-    #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
-    #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Apply Gaussian blur to reduce noise
+    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+    
+    # Apply Otsu's thresholding
+    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # Find contours
     contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     return contours, binary_image
 
-@st.cache_data(ttl="2h")
 def calculate_diameters(contours):
     diameters = []
     for contour in contours:
+        # Calculate the equivalent diameter
         area = cv2.contourArea(contour)
         diameter = np.sqrt(4 * area / np.pi)
         diameters.append(diameter)
     return diameters
 
-@st.cache_data(ttl="2h")
 def draw_contours(image, contours, diameters):
-    output_image = image.copy()
+    output = image.copy()
     for contour, diameter in zip(contours, diameters):
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-        else:
-            cX, cY = 0, 0
-        cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)
-        cv2.putText(output_image, f'{int(diameter)} px', (cX - 20, cY - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-    return output_image
+        x, y, w, h = cv2.boundingRect(contour)
+        radius = int(diameter / 2)
+        
+        # Draw the circle around the contour
+        cv2.circle(output, (x + w // 2, y + h // 2), radius, (0, 255, 0), 2)
+        
+        # Draw the diameter text
+        cv2.putText(output, f'{int(diameter)}px', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
+    
+    return output
 
-@st.cache_data(ttl="2h")
 def calculate_gaps(binary_image):
+    # Invert binary image to detect gaps
     inverted_image = cv2.bitwise_not(binary_image)
+    
+    # Find contours of the gaps
     contours, _ = cv2.findContours(inverted_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     gap_areas = [cv2.contourArea(contour) for contour in contours]
+    
     if gap_areas:
         max_gap = max(gap_areas)
         min_gap = min(gap_areas)
     else:
         max_gap = min_gap = 0
+    
     total_gap_area = sum(gap_areas)
+    
     return total_gap_area, len(contours), max_gap, min_gap
 
-@st.cache_data(ttl="2h")
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
-#---------------------------------------------------------------------------------------------------------------------------------
-### Main app
-#---------------------------------------------------------------------------------------------------------------------------------
 
-uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
-#st.divider()
+def main():
+    st.title("Molecule Analyzer with Background Removal")
 
-if uploaded_file is not None:
+    uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
 
-#---------------------------------------------------------------------------------------------------------------------------------
-### Content
-#---------------------------------------------------------------------------------------------------------------------------------
-
-    tab1, tab2 = st.tabs(["**Information**","**Segmentation**"])
-
-#---------------------------------------------------------------------------------------------------------------------------------
-### Information
-#---------------------------------------------------------------------------------------------------------------------------------
-    
-    with tab1:
-    
-        col1, col2 = st.columns((0.7,0.3))
-        with col1:
-
-            #st.subheader("Image", divider='blue')
-            image = np.array(Image.open(uploaded_file))
-            contours, binary_image = process_image(image)
-            diameters = calculate_diameters(contours)
-            output_image = draw_contours(image, contours, diameters)
-            total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-            st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
-
-            with col2:
-
-                #st.subheader("Statistics", divider='blue')
+    if uploaded_file is not None:
+        # Load the image
+        image = np.array(Image.open(uploaded_file))
         
-                df = pd.DataFrame(diameters, columns=["Diameter (px)"])
-                max_diameter = df["Diameter (px)"].max()
-                min_diameter = df["Diameter (px)"].min()
-
-                df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
-                df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+        # Remove the background
+        masked_image, mask = remove_background(image)
         
-                st.write("**Diameter Statistics:**")
-                st.write(f"Maximum Diameter: **{max_diameter:.2f}** px")
-                st.write(f"Minimum Diameter: **{min_diameter:.2f}** px")
-                st.write(f"No of Molecules: **{df.shape[0]}**")
+        # Process the image to find contours
+        contours, binary_image = process_image(masked_image)
+        
+        # Calculate diameters of the molecules
+        diameters = calculate_diameters(contours)
+        
+        # Draw contours and diameters on the image
+        output_image = draw_contours(masked_image, contours, diameters)
+        
+        # Calculate gap area, count gaps, and find max/min gap
+        total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
+        
+        # Display the processed image with contours
+        st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
+        
+        # Convert diameters list to a DataFrame
+        df = pd.DataFrame(diameters, columns=["Diameter (px)"])
+        
+        # Calculate and display maximum and minimum diameters
+        max_diameter = df["Diameter (px)"].max()
+        min_diameter = df["Diameter (px)"].min()
+        
+        # Add a type column to mark max and min values
+        df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
+        
+        # Reorder the DataFrame to put max and min at the top
+        df = df.sort_values(by='Type', ascending=False).reset_index(drop=True)
+        
+        # Display the DataFrame as a table
+        st.write("**Diameters of detected molecules (in pixels):**")
+        st.dataframe(df.style.highlight_max(subset=['Diameter (px)'], color='lightgreen').highlight_min(subset=['Diameter (px)'], color='lightcoral').set_properties(**{'text-align': 'center'}), width=1000, height=600)
+        
+        # Display the total gap area, count of gaps, and max/min gap areas
+        st.write("**Gap Statistics:**")
+        st.write(f"**Total Gap Area:** {total_gap_area:.2f} px²")
+        st.write(f"**Total Number of Gaps:** {gap_count}")
+        st.write(f"**Maximum Gap Area:** {max_gap:.2f} px²")
+        st.write(f"**Minimum Gap Area:** {min_gap:.2f} px²")
 
-                st.divider()
+        # Convert DataFrame to CSV
+        csv = convert_df_to_csv(df)
+        
+        # Download button for the DataFrame
+        st.download_button(
+            label="Download data as CSV",
+            data=csv,
+            file_name='molecule_diameters.csv',
+            mime='text/csv',
+        )
 
-                st.write("**Gap Statistics:**")
-                st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
-                st.write(f"Total Number of Gaps: **{gap_count}**")
-                st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
-                st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
-
-                st.divider()
-                st.write("**Diameters of detected molecules (in pixels):**")
-                st.dataframe(df.style
-                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
-                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
-                     .format({'Diameter (px)': '{:.2f}'})
-                     , use_container_width=True)
-                
-                st.divider()
-                csv = convert_df_to_csv(df)
-                st.download_button(label="Download data as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
-
+if __name__ == "__main__":
+    main()
