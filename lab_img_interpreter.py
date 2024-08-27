@@ -95,44 +95,56 @@ uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "j
 
 if uploaded_file is not None:
 
-    col1, col2 = st.columns((0.7,0.3))
-    with col1:
+#---------------------------------------------------------------------------------------------------------------------------------
+### Content
+#---------------------------------------------------------------------------------------------------------------------------------
 
-        st.subheader("Image", divider='blue')
-        image = np.array(Image.open(uploaded_file))
-        contours, binary_image = process_image(image)
-        diameters = calculate_diameters(contours)
-        output_image = draw_contours(image, contours, diameters)
-        total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-        st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
+    tab1, tab2 = st.tabs(["**Information**","**Segmentation**"])
 
-        with col2:
+#---------------------------------------------------------------------------------------------------------------------------------
+### Information
+#---------------------------------------------------------------------------------------------------------------------------------
+    
+    with tab1:
+    
+        col1, col2 = st.columns((0.7,0.3))
+        with col1:
 
-            st.subheader("Information", divider='blue')
+            st.subheader("Image", divider='blue')
+            image = np.array(Image.open(uploaded_file))
+            contours, binary_image = process_image(image)
+            diameters = calculate_diameters(contours)
+            output_image = draw_contours(image, contours, diameters)
+            total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
+            st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
+
+            with col2:
+
+                st.subheader("Statistics", divider='blue')
         
-            df = pd.DataFrame(diameters, columns=["Diameter (px)"])
-            max_diameter = df["Diameter (px)"].max()
-            min_diameter = df["Diameter (px)"].min()
+                df = pd.DataFrame(diameters, columns=["Diameter (px)"])
+                max_diameter = df["Diameter (px)"].max()
+                min_diameter = df["Diameter (px)"].min()
 
-            df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
-            df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+                df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
+                df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
         
-            st.write("**Diameter Statistics:**")
-            st.write(f"Maximum Diameter: **{max_diameter:.2f}** px")
-            st.write(f"Minimum Diameter: **{min_diameter:.2f}** px")
-            st.write(f"No of Molecules: **{df.shape[0]}**")
+                st.write("**Diameter Statistics:**")
+                st.write(f"Maximum Diameter: **{max_diameter:.2f}** px")
+                st.write(f"Minimum Diameter: **{min_diameter:.2f}** px")
+                st.write(f"No of Molecules: **{df.shape[0]}**")
 
-            st.divider()
+                st.divider()
 
-            st.write("**Gap Statistics:**")
-            st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
-            st.write(f"Total Number of Gaps: **{gap_count}**")
-            st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
-            st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
+                st.write("**Gap Statistics:**")
+                st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
+                st.write(f"Total Number of Gaps: **{gap_count}**")
+                st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
+                st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
 
-            st.divider()
-            st.write("**Diameters of detected molecules (in pixels):**")
-            st.dataframe(df.style
+                st.divider()
+                st.write("**Diameters of detected molecules (in pixels):**")
+                st.dataframe(df.style
                      .highlight_max(subset=['Diameter (px)'], color='lightgreen')
                      .highlight_min(subset=['Diameter (px)'], color='lightcoral')
                      .format({'Diameter (px)': '{:.2f}'})
