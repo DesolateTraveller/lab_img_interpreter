@@ -81,6 +81,7 @@ if uploaded_file is not None:
     col1, col2 = st.columns((0.7,0.3))
     with col1:
 
+        st.subheader("Image", divider='blue')
         image = np.array(Image.open(uploaded_file))
         contours = process_image(image)
         diameters = calculate_diameters(contours)
@@ -94,13 +95,13 @@ if uploaded_file is not None:
             df = pd.DataFrame(diameters, columns=["Diameter (px)"])
             max_diameter = df["Diameter (px)"].max()
             min_diameter = df["Diameter (px)"].min()
-            st.write("**Diameter Statistics:**")
-            st.write(f"Maximum Diameter: {max_diameter:.2f} px")
-            st.write(f"Minimum Diameter: {min_diameter:.2f} px")
-        
-            st.divider()
 
             df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
-            st.write("**Diameters of detected molecules (in pixels):**")
-            st.dataframe(df.style.highlight_max(subset=['Diameter (px)'], color='lightgreen').highlight_min(subset=['Diameter (px)'], color='lightcoral'))
-
+            df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+        
+            st.write("**Diameter Statistics:**")
+            st.dataframe(df.style
+                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
+                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
+                     .format({'Diameter (px)': '{:.2f}'})
+                     , use_container_width=True)
