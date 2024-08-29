@@ -202,8 +202,7 @@ if uploaded_file is not None:
                     Max_Diameter=("Diameter (px)", "max"),
                     Min_Diameter=("Diameter (px)", "min"),
                     Mean_Diameter=("Diameter (px)", "mean"),
-                    Mean_Diameter=("Diameter (px)", "count")
-                ).reset_index()
+                    No of Molecules =("Diameter (px)", "count")).reset_index()
                 
                 st.dataframe(cluster_stat, use_container_width=True)
 
