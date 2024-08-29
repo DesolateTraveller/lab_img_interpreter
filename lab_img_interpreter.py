@@ -153,20 +153,11 @@ if uploaded_file is not None:
                 st.divider()
 
                 st.write("**Gap Statistics:**")
-                st.write(f"Total Gap Area: **{total_gap_area:.2f}** px²")
-                st.write(f"Total Number of Gaps: **{gap_count}**")
-                st.write(f"Maximum Gap Area: **{max_gap:.2f}** px²")
-                st.write(f"Minimum Gap Area: **{min_gap:.2f}** px²")
-
-                st.write("**Diameter and Gap Statistics:**")
-                stats_df = pd.DataFrame({"Metric": ["Maximum Diameter (px)", 
-                                                    "Minimum Diameter (px)", 
-                                                    "Maximum Gap (px)", 
-                                                    "Minimum Gap (px)", 
-                                                    "Total Molecules", 
-                                                    "Total Gap Area (px²)", 
-                                                    "Total Number of Gaps"],
-                                        "Value": [max_diameter, min_diameter, max_gap, min_gap, len(diameters), total_gap_area, gap_count]})
+                gap_stats_df = pd.DataFrame({
+                    "Metric": ["Total Gap Area (px²)", "Total Number of Gaps", "Maximum Gap Area (px²)", "Minimum Gap Area (px²)"],
+                    "Value": [total_gap_area, gap_count, max_gap, min_gap]
+                })
+                st.dataframe(gap_stats_df, use_container_width=True)
 
                 st.divider()
                 st.write("**Diameters of detected molecules (in pixels):**")
