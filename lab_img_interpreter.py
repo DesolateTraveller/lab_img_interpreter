@@ -1,10 +1,38 @@
+#---------------------------------------------------------------------------------------------------------------------------------
+### Authenticator
+#---------------------------------------------------------------------------------------------------------------------------------
 import streamlit as st
+#---------------------------------------------------------------------------------------------------------------------------------
+### Import Libraries
+#---------------------------------------------------------------------------------------------------------------------------------
 from sklearn.cluster import KMeans
+#----------------------------------------
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+#----------------------------------------
 import cv2
-from PIL import Image
-from skimage import color, measure, morphology
+from PIL import Image, ImageDraw
+from skimage import color, filters, measure, morphology
+#---------------------------------------------------------------------------------------------------------------------------------
+### Title and description for your Streamlit app
+#---------------------------------------------------------------------------------------------------------------------------------
+st.set_page_config(page_title="Lab Image Interpreter | v0.1",
+                    layout="wide",
+                    page_icon="🖼️",            
+                    initial_sidebar_state="collapsed")
+#----------------------------------------
+st.title(f""":rainbow[Lab Image Interpreter]""")
+st.markdown(
+    '''
+    Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
+    for best view of the app, please **zoom-out** the browser to **75%**.
+    ''',
+    unsafe_allow_html=True)
+st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
+#st.divider()
+#----------------------------------------
 
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Functions & Definitions
@@ -22,8 +50,11 @@ def remove_background(image):
 @st.cache_data(ttl="2h")
 def process_image(image):
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)                                     # Apply Gaussian blur to reduce noise
+    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # Apply Otsu's thresholding
+    #kernel = np.ones((3,3), np.uint8)
+    #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
+    #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours, binary_image
 
@@ -37,11 +68,9 @@ def calculate_diameters(contours):
     return diameters
 
 @st.cache_data(ttl="2h")
-def draw_contours(image, contours, diameters, clusters, cluster_counts):
+def draw_contours(image, contours, diameters):
     output_image = image.copy()
-    cluster_centers = {}
-
-    for i, (contour, diameter, cluster) in enumerate(zip(contours, diameters, clusters)):
+    for contour, diameter in zip(contours, diameters):
         M = cv2.moments(contour)
         if M["m00"] != 0:
             cX = int(M["m10"] / M["m00"])
@@ -49,22 +78,8 @@ def draw_contours(image, contours, diameters, clusters, cluster_counts):
         else:
             cX, cY = 0, 0
         cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)
-        cv2.putText(output_image, f'{int(diameter)} px (C{cluster})', (cX - 20, cY - 20),
+        cv2.putText(output_image, f'{int(diameter)} px', (cX - 20, cY - 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
-        if cluster not in cluster_centers:
-            cluster_centers[cluster] = (cX, cY, 1)
-        else:
-            cX_sum, cY_sum, count = cluster_centers[cluster]
-            cluster_centers[cluster] = (cX_sum + cX, cY_sum + cY, count + 1)
-
-    # Draw the cluster number and count of molecules in the center of each cluster
-    for cluster, (cX_sum, cY_sum, count) in cluster_centers.items():
-        cX_center = int(cX_sum / count)
-        cY_center = int(cY_sum / count)
-        cv2.putText(output_image, f'C{cluster}: {cluster_counts[cluster]} mol', 
-                    (cX_center - 40, cY_center), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-        
     return output_image
 
 @st.cache_data(ttl="2h")
@@ -81,91 +96,116 @@ def calculate_gaps(binary_image):
     return total_gap_area, len(contours), max_gap, min_gap
 
 @st.cache_data(ttl="2h")
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+@st.cache_data(ttl="2h")
 def segment_molecules(diameters, num_clusters):
     kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(np.array(diameters).reshape(-1, 1))
     clusters = kmeans.labels_
     return clusters
-
-@st.cache_data(ttl="2h")
-def convert_df_to_csv(df):
-    return df.to_csv(index=False).encode('utf-8')
-
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Main app
 #---------------------------------------------------------------------------------------------------------------------------------
 
 uploaded_file = st.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
+#st.divider()
 
 if uploaded_file is not None:
 
+#---------------------------------------------------------------------------------------------------------------------------------
+### Content
+#---------------------------------------------------------------------------------------------------------------------------------
+
     tab1, tab2 = st.tabs(["**Information**","**Segmentation**"])
 
+#---------------------------------------------------------------------------------------------------------------------------------
+### Information
+#---------------------------------------------------------------------------------------------------------------------------------
+    
     with tab1:
+    
         col1, col2 = st.columns((0.7,0.3))
         with col1:
+
+            #st.subheader("Image", divider='blue')
             image = np.array(Image.open(uploaded_file))
-            masked_image, mask = remove_background(image)
-            contours, binary_image = process_image(masked_image)
+            contours, binary_image = process_image(image)
             diameters = calculate_diameters(contours)
-            st.image(masked_image, caption=f"**Detected Molecules: {len(diameters)}**", use_column_width=True)
+            output_image = draw_contours(image, contours, diameters)
+            total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
+            st.image(output_image, caption=f"**Detected Molecules: {len(diameters)}**", use_column_width=True)
 
             with col2:
+
+                #st.subheader("Statistics", divider='blue')
+        
                 df = pd.DataFrame(diameters, columns=["Diameter (px)"])
                 max_diameter = df["Diameter (px)"].max()
                 min_diameter = df["Diameter (px)"].min()
 
                 df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
                 df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
-
+        
                 st.write("**Diameter Statistics:**")
-                st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)":[min_diameter], "No of Molecules": [df.shape[0]]}))
-
-                total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-
-                st.divider()
-                st.write("**Gap Statistics:**")
-                gap_df = pd.DataFrame({
-                    "Total Gap Area (px²)": [total_gap_area],
-                    "Total Number of Gaps": [gap_count],
-                    "Maximum Gap Area (px²)": [max_gap],
-                    "Minimum Gap Area (px²)": [min_gap]
+                dia_stats_df = pd.DataFrame({
+                    "Metric": ["Max Diameter (px)", "Min Diameter (px)", "No of Molecules"],
+                    "Value": [max_diameter, min_diameter, df.shape[0]]
                 })
-                st.write(gap_df)
+                st.dataframe(dia_stats_df, use_container_width=True)
+              
+                #st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter], "No of Molecules": [df.shape[0]]} ))
+                
+                st.divider()
+
+                st.write("**Gap Statistics:**")
+                gap_stats_df = pd.DataFrame({
+                    "Metric": ["Total Gap Area (px²)", "Total Number of Gaps", "Maximum Gap Area (px²)", "Minimum Gap Area (px²)"],
+                    "Value": [total_gap_area, gap_count, max_gap, min_gap]
+                })
+                st.dataframe(gap_stats_df, use_container_width=True)
 
                 st.divider()
                 st.write("**Diameters of detected molecules (in pixels):**")
                 st.dataframe(df.style
-                             .highlight_max(subset=['Diameter (px)'], color='lightgreen')
-                             .highlight_min(subset=['Diameter (px)'], color='lightcoral')
-                             .format({'Diameter (px)': '{:.2f}'})
-                             , use_container_width=True)
-
+                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
+                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
+                     .format({'Diameter (px)': '{:.2f}'})
+                     , use_container_width=True)
+                
                 st.divider()
                 csv = convert_df_to_csv(df)
                 st.download_button(label="Download data as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
 
+#---------------------------------------------------------------------------------------------------------------------------------
+### Segmentation
+#---------------------------------------------------------------------------------------------------------------------------------
+    
     with tab2:
+
         col1, col2 = st.columns((0.7,0.3))
         with col1:
-            st.image(masked_image, caption="Masked Image", use_column_width=True)
+
+            masked_image, mask = remove_background(image)
+            st.image(masked_image,caption="Masked Image", use_column_width=True)
 
             with col2:
+
                 num_clusters = st.slider("**Select no of clusters**", 1, 10, 5, 1)
                 clusters = segment_molecules(diameters, num_clusters)
 
-                # Count the number of molecules in each cluster
-                cluster_counts = pd.Series(clusters).value_counts().sort_index().to_dict()
-
-                clustered_image = draw_contours(masked_image, contours, diameters, clusters, cluster_counts)
-                st.image(clustered_image, caption="Clustered Molecules", use_column_width=True)
-
                 st.divider()
 
-                st.write("**Cluster Statistics:**")
-                df_c = pd.DataFrame({"Diameter (px)": diameters, "Cluster": clusters})
-                cluster_stats = df_c.groupby('Cluster').agg({'Diameter (px)': ['max', 'min', 'count']})
-                cluster_stats.columns = ['Max Diameter (px)', 'Min Diameter (px)', 'Number of Molecules']
-                st.dataframe(cluster_stats, use_container_width=True)
+                st.write("**Clusters:**")
+                df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
+                cluster_stat = df_c.groupby("Cluster").agg(
+                    Max_Diameter=("Diameter (px)", "max"),
+                    Min_Diameter=("Diameter (px)", "min"),
+                    Mean_Diameter=("Diameter (px)", "mean"),
+                    Mean_Diameter=("Diameter (px)", "count")
+                ).reset_index()
+                
+                st.dataframe(cluster_stat, use_container_width=True)
 
                 st.divider()
                 csv_clusters = convert_df_to_csv(df_c)
