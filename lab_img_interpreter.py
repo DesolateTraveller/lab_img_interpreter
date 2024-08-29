@@ -198,4 +198,10 @@ if uploaded_file is not None:
 
                 st.write("**Clusters:**")
                 df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
-                st.dataframe(df_c, use_container_width=True)
+                cluster_stats = df_c.groupby("Cluster").agg(
+                    Max_Diameter=("Diameter (px)", "max"),
+                    Min_Diameter=("Diameter (px)", "min"),
+                    Mean_Diameter=("Diameter (px)", "mean")
+                ).reset_index()
+                
+                st.dataframe(cluster_stats, use_container_width=True)
