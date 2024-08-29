@@ -198,14 +198,14 @@ if uploaded_file is not None:
 
                 st.write("**Clusters:**")
                 df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
-                cluster_stat = df_c.groupby("Cluster").agg(
-                    Max_Diameter=("Diameter (px)", "max"),
-                    Min_Diameter=("Diameter (px)", "min"),
-                    Mean_Diameter=("Diameter (px)", "mean"),
-                    No of Molecules =("Diameter (px)", "count")).reset_index()
-                
+                cluster_stat = df_c.groupby("Cluster").agg(Max_Diameter=("Diameter (px)", "max"),
+                                                           Min_Diameter=("Diameter (px)", "min"),
+                                                           Mean_Diameter=("Diameter (px)", "mean"),).reset_index()                
                 st.dataframe(cluster_stat, use_container_width=True)
 
+                cluster_no = df_c.groupby('Cluster').agg({'Diameter (px)': ['count']})
+                cluster_no.columns = ['Number of Molecules']
+                st.dataframe(cluster_no, use_container_width=True)
                 st.divider()
                 csv_clusters = convert_df_to_csv(df_c)
                 st.download_button(label="Download cluster data as CSV",data=csv_clusters,file_name='molecule_clusters.csv',mime='text/csv',)
