@@ -148,7 +148,13 @@ if uploaded_file is not None:
                 df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
         
                 st.write("**Diameter Statistics:**")
-                st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter], "No of Molecules": [df.shape[0]]} ))
+                dia_stats_df = pd.DataFrame({
+                    "Metric": ["Max Diameter (px)", "Min Diameter (px)", "No of Molecules"],
+                    "Value": [max_diameter, min_diameter, df.shape[0]]
+                })
+                st.dataframe(dia_stats_df, use_container_width=True)
+              
+                #st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter], "No of Molecules": [df.shape[0]]} ))
                 
                 st.divider()
 
