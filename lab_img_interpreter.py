@@ -179,7 +179,7 @@ if uploaded_file is not None:
         col1, col2 = st.columns((0.7,0.3))
         with col1:
 
-            masked_image, mask = remove_background(output_image)
+            masked_image, mask = remove_background(image)
             st.image(masked_image,caption="Masked Image", use_column_width=True)
 
             with col2:
@@ -189,6 +189,6 @@ if uploaded_file is not None:
 
                 st.divider()
 
-                st.write("**clusters:**")
+                st.write("**Clusters:**")
                 df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
                 st.dataframe(df_c, use_container_width=True)
