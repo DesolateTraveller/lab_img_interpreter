@@ -18,12 +18,12 @@ from skimage import color, filters, measure, morphology
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Title and description for your Streamlit app
 #---------------------------------------------------------------------------------------------------------------------------------
-st.set_page_config(page_title="Lab Image Interpreter | v0.1",
+st.set_page_config(page_title="Particle Image Analysis | v0.1",
                     layout="wide",
                     page_icon="🖼️",            
                     initial_sidebar_state="collapsed")
 #----------------------------------------
-st.title(f""":rainbow[Lab Image Interpreter]""")
+st.title(f""":rainbow[Particle Image Analysis]""")
 st.markdown(
     '''
     Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
