@@ -190,9 +190,8 @@ if uploaded_file is not None:
                 
                 st.divider()
                 csv = convert_df_to_csv(df)
-
-                st.sidebar.divider()
-                st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
+                #st.sidebar.divider()
+                #st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
 
             #masked_image, mask = remove_background(image)
             #st.image(masked_image,caption="Masked Image", use_column_width=True)
@@ -217,4 +216,7 @@ if uploaded_file is not None:
 
                 st.divider()
                 csv_clusters = convert_df_to_csv(df_c)
+
+                st.sidebar.divider()
+                st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
                 st.sidebar.download_button(label="Download cluster data as CSV",data=csv_clusters,file_name='molecule_clusters.csv',mime='text/csv',)
