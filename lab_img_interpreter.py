@@ -30,7 +30,7 @@ st.markdown(
     for best view of the app, please **zoom-out** the browser to **75%**.
     ''',
     unsafe_allow_html=True)
-st.sidebar.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
+st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
 st.divider()
 #----------------------------------------
 
@@ -129,16 +129,17 @@ if uploaded_file is not None:
         col1, col2 = st.columns(2)
         with col1:
 
+            st.subheader("Input", divider='blue')
             image = Image.open(uploaded_file)
             img_array = np.array(image)
             st.image(img_array, caption="Uploaded Image", use_column_width=True)
 
         with col2:
                 
-            #st.subheader("Image", divider='blue')
+            st.subheader("Molecule Detection", divider='blue')
             image = np.array(Image.open(uploaded_file))
             contours, binary_image = process_image(image)
             diameters = calculate_diameters(contours)
             output_image = draw_contours(image, contours, diameters)
             total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
-            st.image(output_image, caption=f"**Detected Molecules: {len(diameters)}**", use_column_width=True)
+            st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
