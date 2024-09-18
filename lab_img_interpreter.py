@@ -143,3 +143,76 @@ if uploaded_file is not None:
             output_image = draw_contours(image, contours, diameters)
             total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
             st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
+
+#---------------------------------------------------------------------------------------------------------------------------------
+### Information
+#---------------------------------------------------------------------------------------------------------------------------------
+    
+    with tab2:
+
+        col1, col2, col3 = st.columns((0.3,0.3,0.4))
+        with col1:
+
+                #st.subheader("Statistics", divider='blue')
+        
+                df = pd.DataFrame(diameters, columns=["Diameter (px)"])
+                max_diameter = df["Diameter (px)"].max()
+                min_diameter = df["Diameter (px)"].min()
+
+                df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
+                df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+        
+                st.write("**Diameter Statistics:**")
+                dia_stats_df = pd.DataFrame({
+                    "Metric": ["Max Diameter (px)", "Min Diameter (px)", "No of Molecules"],
+                    "Value": [max_diameter, min_diameter, df.shape[0]]
+                })
+                st.dataframe(dia_stats_df, use_container_width=True)
+              
+                #st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter], "No of Molecules": [df.shape[0]]} ))
+                
+                st.divider()
+
+                st.write("**Gap Statistics:**")
+                gap_stats_df = pd.DataFrame({
+                    "Metric": ["Total Gap Area (px²)", "Total Number of Gaps", "Maximum Gap Area (px²)", "Minimum Gap Area (px²)"],
+                    "Value": [total_gap_area, gap_count, max_gap, min_gap]
+                })
+                st.dataframe(gap_stats_df, use_container_width=True)
+
+                st.divider()
+                st.write("**Diameters of detected molecules (in pixels):**")
+                st.dataframe(df.style
+                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
+                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
+                     .format({'Diameter (px)': '{:.2f}'})
+                     , use_container_width=True)
+                
+                st.divider()
+                csv = convert_df_to_csv(df)
+                st.download_button(label="Download data as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
+
+            #masked_image, mask = remove_background(image)
+            #st.image(masked_image,caption="Masked Image", use_column_width=True)
+
+        with col2:
+
+                num_clusters = st.slider("**Select no of clusters**", 1, 10, 5, 1)
+                clusters = segment_molecules(diameters, num_clusters)
+
+                st.divider()
+
+                st.write("**Clusters:**")
+                df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
+                cluster_stat = df_c.groupby("Cluster").agg(Max_Diameter =("Diameter (px)", "max"),
+                                                           Min_Diameter =("Diameter (px)", "min"),
+                                                           Mean_Diameter =("Diameter (px)", "mean"),).reset_index()                
+                st.dataframe(cluster_stat, use_container_width=True)
+
+                cluster_no = df_c.groupby('Cluster').agg({'Diameter (px)': ['count']})
+                cluster_no.columns = ['Number of Molecules']
+                st.dataframe(cluster_no, use_container_width=True)
+
+                st.divider()
+                csv_clusters = convert_df_to_csv(df_c)
+                st.download_button(label="Download cluster data as CSV",data=csv_clusters,file_name='molecule_clusters.csv',mime='text/csv',)
