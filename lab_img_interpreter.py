@@ -188,9 +188,8 @@ if uploaded_file is not None:
                      .format({'Diameter (px)': '{:.2f}'})
                      , use_container_width=True)
                 
-                st.divider()
+                st.sidebar.divider()
                 csv = convert_df_to_csv(df)
-                #st.sidebar.divider()
                 #st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
 
             #masked_image, mask = remove_background(image)
@@ -214,9 +213,103 @@ if uploaded_file is not None:
                 cluster_no.columns = ['Number of Molecules']
                 st.dataframe(cluster_no, use_container_width=True)
 
-                st.divider()
+                #st.divider()
                 csv_clusters = convert_df_to_csv(df_c)
 
-                st.sidebar.divider()
                 st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
                 st.sidebar.download_button(label="Download cluster data as CSV",data=csv_clusters,file_name='molecule_clusters.csv',mime='text/csv',)
+
+        with col3:
+
+            gray_image = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)                                # Convert the image to grayscale
+            blurred = cv2.GaussianBlur(gray_image, (5, 5), 0)                                       # Apply Gaussian blur to reduce noise
+
+            # -------------------------------------------------------------------------------------------------------
+            #stats_expander = st.expander("**:red[OTSU Thresholding]**", expanded=False)
+            #with stats_expander:
+            st.subheader("OTSU Thresholding", divider='blue')
+            with st.container(height=400,border=True):    
+                        
+                    _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)                # OTSU Thresholding
+                    otsu_contours, _ = cv2.findContours(otsu_thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)                # Find contours for OTSU Threshold
+                    img_with_otsu_contours = cv2.drawContours(img_array.copy(), otsu_contours, -1, (0, 255, 0), 2)          # Draw contours for OTSU
+                    st.image(img_with_otsu_contours, caption="OTSU Filter: Detected Particles", use_column_width=True)
+                    otsu_valid_particles = 0                                                                                # Calculate valid particles and sphericity for OTSU
+                    otsu_total_particles = len(otsu_contours)
+                    otsu_sphericities = []
+                    otsu_aspect_ratios = []
+            
+                    for contour in otsu_contours:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        rect = cv2.minAreaRect(contour)                                                                     # Calculate aspect ratio of the minimum area rectangle
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = min(width, height) / max(width, height)
+                            otsu_aspect_ratios.append(aspect_ratio)
+                        if perimeter > 0:
+                            sphericity = 4 * np.pi * (area / (perimeter ** 2))                                              # Sphericity formula
+                            otsu_sphericities.append(sphericity)
+                            otsu_valid_particles += 1                                                                       # Assuming all particles are valid for this example
+            
+                        otsu_avg_sphericity = np.mean(otsu_sphericities) if otsu_sphericities else 0
+                        otsu_area_avg_sphericity = np.mean([s * area for s, area in zip(otsu_sphericities, [cv2.contourArea(c) for c in otsu_contours])]) if otsu_sphericities else 0
+                        otsu_avg_aspect_ratio = np.mean(otsu_aspect_ratios) if otsu_aspect_ratios else 0
+            # -------------------------------------------------------------------------------------------------------
+            #stats_expander = st.expander("**:red[Canny Edge Thresholding]**", expanded=False)
+            #with stats_expander:
+            st.subheader("Canny Edge Thresholding", divider='blue')
+            with st.container(height=400,border=True):  
+                     
+                    canny_edges = cv2.Canny(blurred, 80, 170)                                                               # Canny Edge Detection
+                    canny_contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)             # Find contours for Canny Edge Detection
+                    img_with_canny_contours = cv2.drawContours(img_array.copy(), canny_contours, -1, (255, 0, 0), 2)        # Draw contours for Canny
+                    st.image(img_with_canny_contours, caption="Canny Edge Filter: Detected Particles", use_column_width=True)
+                    canny_valid_particles = 0                                                                               # Calculate valid particles and sphericity for Canny Edge
+                    canny_total_particles = len(canny_contours)
+                    canny_sphericities = []
+                    canny_aspect_ratios = []
+            
+                    for contour in canny_contours:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        rect = cv2.minAreaRect(contour)                                                                     # Calculate aspect ratio of the minimum area rectangle
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = min(width, height) / max(width, height)
+                            canny_aspect_ratios.append(aspect_ratio)
+                        if perimeter > 0:
+                            sphericity = 4 * np.pi * (area / (perimeter ** 2))                                              # Sphericity formula
+                            canny_sphericities.append(sphericity)
+                            canny_valid_particles += 1                                                                      # Assuming all particles are valid for this example
+                        
+                        canny_avg_sphericity = np.mean(canny_sphericities) if canny_sphericities else 0
+                        canny_area_avg_sphericity = np.mean([s * area for s, area in zip(canny_sphericities, [cv2.contourArea(c) for c in canny_contours])]) if canny_sphericities else 0
+                        canny_avg_aspect_ratio = np.mean(canny_aspect_ratios) if canny_aspect_ratios else 0
+            # -------------------------------------------------------------------------------------------------------    
+            #st.divider()
+            data = {"Filter Type": ["OTSU", "Canny Edge"],
+                    "Valid/Total Particles": [f"{otsu_valid_particles}/{otsu_total_particles}", f"{canny_valid_particles}/{canny_total_particles}"],
+                    "Average Sphericity": [otsu_avg_sphericity, canny_avg_sphericity],
+                    "Area Averaged Sphericity": [otsu_area_avg_sphericity, canny_area_avg_sphericity],
+                    "Average Aspect Ratio": [otsu_avg_aspect_ratio, canny_avg_aspect_ratio],}
+            df = pd.DataFrame(data)
+            st.dataframe(df)
+
+    # -------------------------------------------------------------------------------------------------------
+
+    st.sidebar.divider()
+    st.sidebar.header("Hyperparameters", divider='blue')
+
+    aspect_ratio_threshold = st.sidebar.slider("**aspect_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.8)
+    sphericity_threshold = st.sidebar.slider("**sphericity_threshold**", min_value=0.01, max_value=0.99, value=0.7)
+    particle_ratio_threshold = st.sidebar.slider("**particle_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.5)
+
+    st.sidebar.divider()
+
+    if otsu_avg_aspect_ratio > aspect_ratio_threshold and otsu_avg_sphericity > sphericity_threshold and (otsu_valid_particles / otsu_total_particles) > particle_ratio_threshold:
+        st.sidebar.success("**GOOD**")
+    elif canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold:
+        st.sidebar.success("**GOOD**")
+    else:
+        st.sidebar.error("**BAD**")
