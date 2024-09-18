@@ -3,1241 +3,320 @@
 #---------------------------------------------------------------------------------------------------------------------------------
 import streamlit as st
 #---------------------------------------------------------------------------------------------------------------------------------
-### Template Graphics
-#---------------------------------------------------------------------------------------------------------------------------------
-import streamlit.components.v1 as components
-#---------------------------------------------------------------------------------------------------------------------------------
 ### Import Libraries
 #---------------------------------------------------------------------------------------------------------------------------------
-#from streamlit_extras.stoggle import stoggle
-#from ydata_profiling import ProfileReport
-#from streamlit_pandas_profiling import st_profile_report
-#----------------------------------------
-import os
-import time
-import warnings
-warnings.filterwarnings("ignore")
-from PIL import Image
-from random import randint
-#----------------------------------------
-import json
-import holidays
-import base64
-import itertools
-import codecs
-from datetime import datetime, timedelta, date
-#from __future__ import division
+from sklearn.cluster import KMeans
 #----------------------------------------
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
 #----------------------------------------
-#import dabl
-import altair as alt
-import plotly.express as px
-import plotly.offline as pyoff
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
-from plotly.subplots import make_subplots
-import scikitplot as skplt
-#----------------------------------------
-import shutil
-import sweetviz as sv
-import pygwalker as pyg
-#----------------------------------------
-# Model Building
-import xgboost as xgb
-from sklearn import tree
-from sklearn.svm import SVC
-from sklearn.dummy import DummyClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.linear_model import LogisticRegression, RidgeClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, ExtraTreesClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-from sklearn.model_selection import KFold, cross_val_score, train_test_split
-#
-from catboost import CatBoostClassifier
-from lightgbm import LGBMClassifier
-from xgboost import XGBClassifier
-from xgboost import plot_importance
-#import optuna.integration.lightgbm as lgb
-from sklearn.metrics import classification_report,confusion_matrix
-#----------------------------------------
-# Model Performance & Validation
-import shap
-import scipy.cluster.hierarchy as shc
-from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.model_selection import train_test_split
-from sklearn.inspection import permutation_importance
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, cross_val_score
-from sklearn.metrics import roc_auc_score,roc_curve,classification_report,confusion_matrix, accuracy_score
-from sklearn.feature_selection import SelectKBest, mutual_info_classif, f_classif, f_regression, chi2, VarianceThreshold
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, RocCurveDisplay, PrecisionRecallDisplay, silhouette_score
-from sklearn.metrics import accuracy_score, auc, roc_auc_score, recall_score, precision_score, f1_score, cohen_kappa_score, matthews_corrcoef, precision_recall_curve
-#----------------------------------------
-# Model Validation
-#----------------------------------------
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_squared_log_error
-from sklearn.model_selection import train_test_split, learning_curve, validation_curve
-from sklearn.linear_model import LinearRegression, Ridge, ElasticNet, Lasso,BayesianRidge, OrthogonalMatchingPursuit, HuberRegressor
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor, AdaBoostRegressor, ExtraTreesRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.dummy import DummyRegressor
-from catboost import CatBoostRegressor
-from lightgbm import LGBMRegressor
-from sklearn.metrics import mean_absolute_percentage_error as mape
-#----------------------------------------
-from sklearn.cluster import KMeans, AffinityPropagation, MeanShift, SpectralClustering, AgglomerativeClustering, DBSCAN, OPTICS, Birch
-from kmodes.kmodes import KModes
-from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score, homogeneity_score, adjusted_rand_score, completeness_score, silhouette_samples
-#----------------------------------------
-#from pycaret.classification import setup, compare_models, pull, save_model, evaluate_model
-#from pycaret.classification import setup, compare_models, predict_model, pull, plot_model, create_model, ensemble_model, blend_models, stack_models, tune_model, save_model
+import cv2
+from PIL import Image, ImageDraw
+from skimage import color, filters, measure, morphology
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Title and description for your Streamlit app
 #---------------------------------------------------------------------------------------------------------------------------------
-#import custom_style()
-st.set_page_config(page_title="ML Studio | v0.1",
-                   layout="wide",
-                   page_icon="💻",              
-                   initial_sidebar_state="auto")
+st.set_page_config(page_title="Particle Image Analysis | v0.1",
+                    layout="wide",
+                    page_icon="🖼️",            
+                    initial_sidebar_state="auto",)
 #----------------------------------------
-st.title(f""":rainbow[Machine Learning (ML) Studio]""")
+st.title(f""":rainbow[Particle Image Analysis]""")
 st.markdown(
     '''
     Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
     for best view of the app, please **zoom-out** the browser to **75%**.
     ''',
     unsafe_allow_html=True)
-#st.info('**A lightweight Machine Learning (ML) streamlit app that help to analyse different kind machine learning problems**', icon="ℹ️")
-#----------------------------------------
-# Set the background image
+st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
 st.divider()
+#----------------------------------------
 
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Functions & Definitions
 #---------------------------------------------------------------------------------------------------------------------------------
 
 @st.cache_data(ttl="2h")
-def load_file(file):
-    file_extension = file.name.split('.')[-1]
-    if file_extension == 'csv':
-        df = pd.read_csv(file, sep=None, engine='python', encoding='utf-8', parse_dates=True, infer_datetime_format=True)
-    elif file_extension in ['xls', 'xlsx']:
-        df = pd.read_excel(file)
+def remove_background(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (21, 21), 0)
+    _, mask = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    kernel = np.ones((1, 1), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    masked_image = cv2.bitwise_and(image, image, mask=mask)
+    return masked_image, mask
+
+@st.cache_data(ttl="2h")
+def process_image(image):
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)                                     # Apply Gaussian blur to reduce noise
+    _, binary_image = cv2.threshold(blurred_image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # Apply Otsu's thresholding
+    #kernel = np.ones((3,3), np.uint8)
+    #cleaned_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel, iterations=2)
+    #contours, _ = cv2.findContours(cleaned_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return contours, binary_image
+
+@st.cache_data(ttl="2h")
+def calculate_diameters(contours):
+    diameters = []
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        diameter = np.sqrt(4 * area / np.pi)
+        diameters.append(diameter)
+    return diameters
+
+@st.cache_data(ttl="2h")
+def draw_contours(image, contours, diameters):
+    output_image = image.copy()
+    for contour, diameter in zip(contours, diameters):
+        M = cv2.moments(contour)
+        if M["m00"] != 0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+        else:
+            cX, cY = 0, 0
+        cv2.drawContours(output_image, [contour], -1, (0, 255, 0), 2)
+        cv2.putText(output_image, f'{int(diameter)} px', (cX - 20, cY - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    return output_image
+
+@st.cache_data(ttl="2h")
+def calculate_gaps(binary_image):
+    inverted_image = cv2.bitwise_not(binary_image)
+    contours, _ = cv2.findContours(inverted_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    gap_areas = [cv2.contourArea(contour) for contour in contours]
+    if gap_areas:
+        max_gap = max(gap_areas)
+        min_gap = min(gap_areas)
     else:
-        st.error("Unsupported file format")
-        df = pd.DataFrame()
-    return df
-
-#----------------------------------------
-@st.cache_data(ttl="2h")
-def check_missing_values(data):
-    missing_values = data.isnull().sum()
-    missing_values = missing_values[missing_values > 0]
-    return missing_values 
+        max_gap = min_gap = 0
+    total_gap_area = sum(gap_areas)
+    return total_gap_area, len(contours), max_gap, min_gap
 
 @st.cache_data(ttl="2h")
-def check_outliers(data):
-    numerical_columns = data.select_dtypes(include=[np.number]).columns
-    outliers = pd.DataFrame(columns=['Column', 'Number of Outliers'])
-    for column in numerical_columns:
-        Q1 = data[column].quantile(0.25)
-        Q3 = data[column].quantile(0.75)
-        IQR = Q3 - Q1
-        threshold = 1.5
-        outliers_indices = ((data[column] < Q1 - threshold * IQR) | (data[column] > Q3 + threshold * IQR))
-        num_outliers = outliers_indices.sum()
-        outliers = outliers._append({'Column': column, 'Number of Outliers': num_outliers}, ignore_index=True)
-        return outliers
+def convert_df_to_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+@st.cache_data(ttl="2h")
+def segment_molecules(diameters, num_clusters):
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(np.array(diameters).reshape(-1, 1))
+    clusters = kmeans.labels_
+    return clusters
+#---------------------------------------------------------------------------------------------------------------------------------
+### Main app
+#---------------------------------------------------------------------------------------------------------------------------------
+st.sidebar.header("Input", divider='blue')
+uploaded_file = st.sidebar.file_uploader("**Upload a particle image**",type=["jpg", "jpeg", "png"])
+#st.divider()
+
+if uploaded_file is not None:
+
+#---------------------------------------------------------------------------------------------------------------------------------
+### Content
+#---------------------------------------------------------------------------------------------------------------------------------
+
+    tab1, tab2 = st.tabs(["**Input**","**Information**"])
+
+#---------------------------------------------------------------------------------------------------------------------------------
+### Input
+#---------------------------------------------------------------------------------------------------------------------------------
     
-@st.cache_data(ttl="2h")
-def handle_numerical_missing_values(data, numerical_strategy):
-    imputer = SimpleImputer(strategy=numerical_strategy)
-    numerical_features = data.select_dtypes(include=['number']).columns
-    data[numerical_features] = imputer.fit_transform(data[numerical_features])
-    return data
+    with tab1:
+    
+        col1, col2 = st.columns(2)
+        with col1:
 
-@st.cache_data(ttl="2h")
-def handle_categorical_missing_values(data, categorical_strategy):
-    imputer = SimpleImputer(strategy=categorical_strategy, fill_value='no_info')
-    categorical_features = data.select_dtypes(exclude=['number']).columns
-    data[categorical_features] = imputer.fit_transform(data[categorical_features])
-    return data  
+            st.subheader("Input", divider='blue')
+            image = Image.open(uploaded_file)
+            img_array = np.array(image)
+            st.image(img_array, caption="Uploaded Image", use_column_width=True)
 
-@st.cache_data(ttl="2h")
-def label_encode(df, column):
-    le = LabelEncoder()
-    df[column] = le.fit_transform(df[column])
-    return df
-
-#----------------------------------------
-@st.cache_data(ttl="2h")
-def onehot_encode(df, column):
-    ohe = OneHotEncoder(sparse=False)
-    encoded_cols = ohe.fit_transform(df[[column]])
-    encoded_df = pd.DataFrame(encoded_cols, columns=[f"{column}_{cat}" for cat in ohe.categories_[0]])
-    df = df.drop(column, axis=1).join(encoded_df)
-    return df
-
-@st.cache_data(ttl="2h")
-def scale_features(df, method):
-    numerical_columns = df.select_dtypes(include=['float64', 'int64']).columns
-    if method == 'Standard Scaling':
-        scaler = StandardScaler()
-    elif method == 'Min-Max Scaling':
-        scaler = MinMaxScaler()
-    elif method == 'Robust Scaling':
-        scaler = RobustScaler()
-    df[numerical_columns] = scaler.fit_transform(df[numerical_columns])
-    return df
-
-@st.cache_data(ttl="2h")
-def calculate_vif(data):
-    X = data.values
-    vif_data = pd.DataFrame()
-    vif_data["Variable"] = data.columns
-    vif_data["VIF"] = [variance_inflation_factor(X, i) for i in range(X.shape[1])]
-    vif_data = vif_data.sort_values(by="VIF", ascending=False)
-    return vif_data
-
-@st.cache_data(ttl="2h")
-def drop_high_vif_variables(data, threshold):
-    vif_data = calculate_vif(data)
-    high_vif_variables = vif_data[vif_data["VIF"] > threshold]["Variable"].tolist()
-    data = data.drop(columns=high_vif_variables)
-    return data
-
-#----------------------------------------
-# Dictionary of metrics
-metrics_dict = {
-    "Area Under the Curve": 'auc',
-    "Discrimination Threshold": 'threshold',
-    "Precision-Recall Curve": 'pr',
-    "Confusion Matrix": 'confusion_matrix',
-    "Class Prediction Error": 'error',
-    "Classification Report": 'class_report',
-    "Decision Boundary": 'boundary',
-    "Recursive Feature Selection": 'rfe',
-    "Learning Curve": 'learning',
-    "Manifold Learning": 'manifold',
-    "Calibration Curve": 'calibration',
-    "Validation Curve": 'vc',
-    "Dimension Learning": 'dimension',
-    "Feature Importance (Top 10)": 'feature',
-    "Feature IImportance (all)": 'feature_all',
-    "Lift Curve":'lift',
-    "Gain Curve": 'gain',
-    #"KS Statistic Plot":  'ks'
-}
-
-def evaluate_model(model, X_train, X_test, y_train, y_test):
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    y_pred_prob = model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
-    return {
-        "Accuracy": accuracy_score(y_test, y_pred),
-        "AUC": roc_auc_score(y_test, y_pred_prob) if y_pred_prob is not None else np.nan,
-        "Recall": recall_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred),
-        "F1 Score": f1_score(y_test, y_pred),
-        "Kappa": cohen_kappa_score(y_test, y_pred),
-        "MCC": matthews_corrcoef(y_test, y_pred)
-    }
-models = {
-    "Logistic Regression": LogisticRegression(),
-    "Ridge Classifier": RidgeClassifier(),
-    "Linear Discriminant Analysis": LinearDiscriminantAnalysis(),
-    "Random Forest Classifier": RandomForestClassifier(),
-    #"Naive Bayes": GaussianNB(),
-    #"CatBoost Classifier": CatBoostClassifier(verbose=0),
-    "Gradient Boosting Classifier": GradientBoostingClassifier(),
-    "Ada Boost Classifier": AdaBoostClassifier(),
-    "Extra Trees Classifier": ExtraTreesClassifier(),
-    #"Quadratic Discriminant Analysis": QuadraticDiscriminantAnalysis(),
-    "Light Gradient Boosting Machine": LGBMClassifier(),
-    "K Neighbors Classifier": KNeighborsClassifier(),
-    "Decision Tree Classifier": DecisionTreeClassifier(),
-    #"Extreme Gradient Boosting": XGBClassifier(use_label_encoder=False, eval_metric='logloss'),
-    "Dummy Classifier": DummyClassifier(strategy="most_frequent"),
-    #"SVM - Linear Kernel": SVC(kernel="linear", probability=True)
-    }
-
-#----------------------------------------
-def calculate_metrics(y_true, y_pred):
-    mae = mean_absolute_error(y_true, y_pred)
-    mse = mean_squared_error(y_true, y_pred)
-    rmse = np.sqrt(mse)
-    r2 = r2_score(y_true, y_pred)
-    rmsle = np.sqrt(mean_squared_log_error(y_true, y_pred)) if np.all(y_pred > 0) else None
-    mape_value = mape(y_true, y_pred)
-    return mae, mse, rmse, r2, rmsle, mape_value
-
-# Define regressors
-regressors = {
-    "Dummy Regressor": DummyRegressor(),
-    "Linear Regression": LinearRegression(),
-    "Ridge Regression": Ridge(),
-    "Elastic Net": ElasticNet(),
-    "Bayesian Ridge": BayesianRidge(),
-    "Orthogonal Matching Pursuit": OrthogonalMatchingPursuit(),
-    "Huber Regressor": HuberRegressor(),
-    "Gradient Boosting Regressor": GradientBoostingRegressor(),
-    "Random Forest Regressor": RandomForestRegressor(),
-    "CatBoost Regressor": CatBoostRegressor(silent=True),
-    #"Passive Aggressive Regressor": PassiveAggressiveRegressor(),
-    "K Neighbors Regressor": KNeighborsRegressor(),
-    "LGBM Regressor": LGBMRegressor(),
-    "AdaBoost Regressor": AdaBoostRegressor(),
-    "Extra Trees Regressor": ExtraTreesRegressor(),
-    "Decision Tree Regressor": DecisionTreeRegressor()
-}
-
-def plot_learning_curve(model, X_train, y_train, title="Learning Curve"):
-    train_sizes, train_scores, val_scores = learning_curve(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error', train_sizes=np.linspace(0.1, 1.0, 10))
-    train_scores_mean = np.mean(train_scores, axis=1)
-    val_scores_mean = np.mean(val_scores, axis=1)
-    plt.figure(figsize=(8, 3))
-    plt.plot(train_sizes, train_scores_mean, 'o-', color="r", label="Training Score")
-    plt.plot(train_sizes, val_scores_mean, 'o-', color="g", label="Cross-Validation Score")
-    plt.title(title)
-    plt.xlabel("Training Examples")
-    plt.ylabel("Score (Negative MSE)")
-    plt.legend(loc="best")
-    st.pyplot(plt, use_container_width=True)
-
-def plot_validation_curve(model, X_train, y_train, param_name, param_range, title="Validation Curve"):
-    train_scores, val_scores = validation_curve(model, X_train, y_train, param_name=param_name, param_range=param_range, cv=5, scoring='neg_mean_squared_error')
-    train_scores_mean = np.mean(train_scores, axis=1)
-    val_scores_mean = np.mean(val_scores, axis=1)
-    plt.figure(figsize=(8, 3))
-    plt.plot(param_range, train_scores_mean, 'o-', color="r", label="Training Score")
-    plt.plot(param_range, val_scores_mean, 'o-', color="g", label="Cross-Validation Score")
-    plt.title(title)
-    plt.xlabel(f"Values of {param_name}")
-    plt.ylabel("Score (Negative MSE)")
-    plt.legend(loc="best")
-    st.pyplot(plt, use_container_width=True)
-
-#----------------------------------------
-clustering_algorithms = {
-    "KMeans": KMeans(n_clusters=3),
-    "AffinityPropagation": AffinityPropagation(),
-    "MeanShift": MeanShift(),
-    "SpectralClustering": SpectralClustering(n_clusters=3),
-    "AgglomerativeClustering": AgglomerativeClustering(n_clusters=3),
-    "DBSCAN": DBSCAN(),
-    "OPTICS": OPTICS(),
-    "Birch": Birch(n_clusters=3),
-    "KModes": KModes(n_clusters=3, init='Cao', n_init=5, verbose=1)
-}    
-#---------------------------------------------------------------------------------------------------------------------------------
-### Main App
-#---------------------------------------------------------------------------------------------------------------------------------
-
-#st.sidebar.header("Input", divider='blue')
-#st.sidebar.info('Please choose from the following options to start the application.', icon="ℹ️")
-
-st.sidebar.info('**A lightweight Machine Learning (ML) streamlit app that help to analyse different kind machine learning problems**', icon="ℹ️")
-ml_type = st.sidebar.selectbox("**:blue[Pick your Problem Type]**", ["None", "Classification", "Clustering", "Regression",])
-
-#---------------------------------------------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------------------------------------------                                                   
-if ml_type == "None":
-        st.warning("Please choose an algorithm in the sidebar to proceed with the analysis.")
-#---------------------------------------------------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------------------------------------------------
-else:        
-    file = st.sidebar.file_uploader("**:blue[Choose a file]**",
-                                    type=["csv", "xls", "xlsx"], 
-                                    accept_multiple_files=False, 
-                                    key="file_upload")
-    if file is not None:
-        df = load_file(file)
-        st.sidebar.divider()
-
-        stats_expander = st.expander("**Preview of Data**", expanded=True)
-        with stats_expander:  
-            st.table(df.head(2))
-        st.divider()
-
-        target_variable = st.sidebar.selectbox("**:blue[Choose Target Variable]**", options=["None"] + list(df.columns), key="target_variable")
-        st.sidebar.divider()
-        if target_variable == "None":
-            st.warning("Please choose a target variable to proceed with the analysis.")
-
-#---------------------------------------------------------------------------------------------------------------------------------
-        else:  
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["**Information**","**Visualizations**","**Cleaning**","**Transformation**","**Performance**","**Graph**","**Results**",])
-            
-#---------------------------------------------------------------------------------------------------------------------------------
-            with tab1:
-
-                #st.subheader("**Data Analysis**",divider='blue')
-                col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
-
-                col1.metric('**input values (rows)**', df.shape[0], help='number of rows')
-                col2.metric('**variables (columns)**', df.shape[1], help='number of columns')     
-                col3.metric('**numerical variables**', len(df.select_dtypes(include=['float64', 'int64']).columns), help='number of numerical variables')
-                col4.metric('**categorical variables**', len(df.select_dtypes(include=['object']).columns), help='number of categorical variables')
+        with col2:
                 
-                col5.metric('**Missing values**', df.isnull().sum().sum(), help='Total missing values in the dataset')
-                #col6.metric('**Unique categorical values**', sum(df.select_dtypes(include=['object']).nunique()), help='Sum of unique values in categorical variables')
-                col6.metric('**Target Variable**', target_variable, help='Selected target variable')
-
-                # Determine if it's a binary or multiclass classification
-                if ml_type == 'classification':
-                    unique_vals = df[target_variable].nunique()
-                    if unique_vals == 2:
-                        target_type = "Binary"
-                    else:
-                        target_type = "Multiclass"
-                    col7.metric('**Type of Target Variable**', target_type, help='Classification problem type (binary/multiclass)')
-                else:
-                    None
-                #st.divider()           
-
-                stats_expander = st.expander("**Exploratory Data Analysis (EDA)**", expanded=False)
-                with stats_expander:        
-                    #pr = df.profile_report()
-                    #st_profile_report(pr)
-                    st.table(df.head()) 
+            st.subheader("Molecule Detection", divider='blue')
+            image = np.array(Image.open(uploaded_file))
+            contours, binary_image = process_image(image)
+            diameters = calculate_diameters(contours)
+            output_image = draw_contours(image, contours, diameters)
+            total_gap_area, gap_count, max_gap, min_gap = calculate_gaps(binary_image)
+            st.image(output_image, caption=f"Detected Molecules: {len(diameters)}", use_column_width=True)
 
 #---------------------------------------------------------------------------------------------------------------------------------
-            with tab2:
-
-                plot_option = st.selectbox("**Choose Plot**", ["Line Chart", "Histogram", "Scatter Plot", "Bar Chart", "Box Plot"])
-                columns = list(df.columns)
-                col1, col2 = st.columns((0.1,0.9))
-                    
-                if plot_option == "Line Chart":
-
-                    with col1:
-                            x_column = st.selectbox("**:blue[Select X column]**", options=columns, key="date_1", )
-                            y_column = st.selectbox("**:blue[Select Y column]**", options=columns, key="values_1")
-                        
-                    with col2:
-                            line_chart = alt.Chart(df).mark_line().encode(
-                            x=alt.X(x_column, type='temporal' if pd.api.types.is_datetime64_any_dtype(df[x_column]) else 'ordinal'),
-                            y=alt.Y(y_column, type='quantitative'),
-                            tooltip=[x_column, y_column]).interactive()
-                            st.altair_chart(line_chart, use_container_width=True)
-
-                elif plot_option == "Histogram":
-                        
-                    with col1:
-                            x_column = st.selectbox("**:blue[Select column for histogram]**", options=columns, key="hist_1",)
-                        
-                    with col2:
-                            histogram = alt.Chart(df).mark_bar().encode(
-                            x=alt.X(x_column, bin=True),
-                            y=alt.Y('count()', type='quantitative'),
-                            tooltip=[x_column, 'count()']).interactive()
-                            st.altair_chart(histogram, use_container_width=True)
-
-                elif plot_option == "Scatter Plot":
-                        
-                    with col1:
-                            x_column = st.selectbox("**:blue[Select X column]**", options=columns, key="scatter_x", )
-                            y_column = st.selectbox("**:blue[Select Y column]**", options=columns, key="scatter_y", )
-                        
-                    with col2:
-                            scatter_plot = alt.Chart(df).mark_point().encode(
-                            x=alt.X(x_column, type='quantitative' if pd.api.types.is_numeric_dtype(df[x_column]) else 'ordinal'),
-                            y=alt.Y(y_column, type='quantitative'),
-                            tooltip=[x_column, y_column]).interactive()
-                            st.altair_chart(scatter_plot, use_container_width=True)
-
-                elif plot_option == "Bar Chart":
-                    
-                    with col1:
-                            x_column = st.selectbox("**:blue[Select X column]**", options=columns, key="bar_x", )
-                            y_column = st.selectbox("**:blue[Select Y column]**", options=columns, key="bar_y", )
-                        
-                    with col2:
-                            bar_chart = alt.Chart(df).mark_bar().encode(
-                            x=alt.X(x_column, type='ordinal' if not pd.api.types.is_numeric_dtype(df[x_column]) else 'quantitative'),
-                            y=alt.Y(y_column, type='quantitative'),
-                            tooltip=[x_column, y_column]).interactive()
-                            st.altair_chart(bar_chart, use_container_width=True)
-
-                elif plot_option == "Box Plot":
-                    
-                    with col1:
-                            x_column = st.selectbox("**:blue[Select X column]**", options=columns, key="box_x",)
-                            y_column = st.selectbox("**:blue[Select Y column]**", options=columns, key="box_y", )
-                        
-                    with col2:
-                            box_plot = alt.Chart(df).mark_boxplot().encode(
-                            x=alt.X(x_column, type='ordinal' if not pd.api.types.is_numeric_dtype(df[x_column]) else 'quantitative'),
-                            y=alt.Y(y_column, type='quantitative'),
-                            tooltip=[x_column, y_column]).interactive()
-                            st.altair_chart(box_plot, use_container_width=True)
-
+### Information
 #---------------------------------------------------------------------------------------------------------------------------------
-            with tab3:
+    
+    with tab2:
+
+        col1, col2, col3 = st.columns((0.3,0.3,0.4))
+        with col1:
+
+                st.subheader("Statistics", divider='blue')
+        
+                df = pd.DataFrame(diameters, columns=["Diameter (px)"])
+                max_diameter = df["Diameter (px)"].max()
+                min_diameter = df["Diameter (px)"].min()
+
+                df['Type'] = ['Max' if d == max_diameter else 'Min' if d == min_diameter else '' for d in df["Diameter (px)"]]
+                df = df.sort_values(by="Diameter (px)", ascending=False).reset_index(drop=True)
+        
+                st.write("**Diameter Statistics:**")
+                dia_stats_df = pd.DataFrame({
+                    "Metric": ["Max Diameter (px)", "Min Diameter (px)", "No of Molecules"],
+                    "Value": [max_diameter, min_diameter, df.shape[0]]
+                })
+                st.dataframe(dia_stats_df, use_container_width=True)
+              
+                #st.write(pd.DataFrame({"Max Diameter (px)": [max_diameter], "Min Diameter (px)": [min_diameter], "No of Molecules": [df.shape[0]]} ))
                 
-                    st.subheader("Missing Values Check & Treatment",divider='blue')
-                    col1, col2 = st.columns((0.2,0.8))
+                st.divider()
 
-                    with col1:
-                        
-                        missing_values = check_missing_values(df)
-                        if missing_values.empty:
-                            st.success("**No missing values found!**")
-                        else:
-                            st.warning("**Missing values found!**")
-                            st.write("**Number of missing values:**")
-                            st.table(missing_values)
+                st.write("**Gap Statistics:**")
+                gap_stats_df = pd.DataFrame({
+                    "Metric": ["Total Gap Area (px²)", "Total Number of Gaps", "Maximum Gap Area (px²)", "Minimum Gap Area (px²)"],
+                    "Value": [total_gap_area, gap_count, max_gap, min_gap]
+                })
+                st.dataframe(gap_stats_df, use_container_width=True)
 
-                            with col2:                 
-                                numerical_strategies = ['mean', 'median', 'most_frequent']
-                                categorical_strategies = ['constant','most_frequent']
-                                st.write("**Missing Values Treatment:**")
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    selected_numerical_strategy = st.selectbox("**Select a strategy for treatment : Numerical variables**", numerical_strategies)
-                                with col2:
-                                    selected_categorical_strategy = st.selectbox("**Select a strategy for treatment : Categorical variables**", categorical_strategies)  
-                                
-                                #if st.button("**Apply Missing Values Treatment**"):
-                                cleaned_df = handle_numerical_missing_values(df, selected_numerical_strategy)
-                                cleaned_df = handle_categorical_missing_values(cleaned_df, selected_categorical_strategy)   
-                                st.table(cleaned_df.head(2))
-
-                                # Download link for treated data
-                                st.download_button("**Download Treated Data**", cleaned_df.to_csv(index=False), file_name="treated_data.csv")
-
-                    #with col2:
-
-                    st.subheader("Duplicate Values Check",divider='blue') 
-                    if st.checkbox("Show Duplicate Values"):
-                        if missing_values.empty:
-                            st.table(df[df.duplicated()].head(2))
-                        else:
-                            st.table(cleaned_df[cleaned_df.duplicated()].head(2))
-
-                    #with col4:
-
-                        #x_column = st.selectbox("Select x-axis column:", options = df.columns.tolist()[0:], index = 0)
-                        #y_column = st.selectbox("Select y-axis column:", options = df.columns.tolist()[0:], index = 1)
-                        #chart = alt.Chart(df).mark_boxplot(extent='min-max').encode(x=x_column,y=y_column)
-                        #st.altair_chart(chart, theme=None, use_container_width=True)  
-
-                    st.subheader("Outliers Check & Treatment",divider='blue')
+                st.divider()
+                st.write("**Diameters of detected molecules (in pixels):**")
+                st.dataframe(df.style
+                     .highlight_max(subset=['Diameter (px)'], color='lightgreen')
+                     .highlight_min(subset=['Diameter (px)'], color='lightcoral')
+                     .format({'Diameter (px)': '{:.2f}'})
+                     , use_container_width=True)
                 
-                    if missing_values.empty:
-                        df = df.copy()
-                    else:
-                        df = cleaned_df.copy()
-
-                    col1, col2 = st.columns((0.2,0.8))
-
-                    with col1:
-                        # Check for outliers
-                        outliers = check_outliers(df)
-
-                        # Display results
-                        if outliers.empty:
-                            st.success("No outliers found!")
-                        else:
-                            st.warning("**Outliers found!**")
-                            st.write("**Number of outliers:**")
-                            st.table(outliers)
-                    
-                    with col2:
-                        # Treatment options
-                        treatment_option = st.sidebar.selectbox("**:blue[Select a treatment option:]**", ["Cap Outliers","Drop Outliers", ])
-                            # Perform treatment based on user selection
-                        if treatment_option == "Drop Outliers":
-                                df = df[~outliers['Column'].isin(outliers[outliers['Number of Outliers'] > 0]['Column'])]
-                                st.success("Outliers dropped. Preview of the cleaned dataset:")
-                                st.write(df.head())
-
-                        elif treatment_option == "Cap Outliers":
-                                df = df.copy()
-                                for column in outliers['Column'].unique():
-                                    Q1 = df[column].quantile(0.25)
-                                    Q3 = df[column].quantile(0.75)
-                                    IQR = Q3 - Q1
-                                    threshold = 1.5
-
-                                    # Cap outliers
-                                    df[column] = np.where(df[column] < Q1 - threshold * IQR, Q1 - threshold * IQR, df[column])
-                                    df[column] = np.where(df[column] > Q3 + threshold * IQR, Q3 + threshold * IQR, df[column])
-
-                                    st.success("Outliers capped. Preview of the capped dataset:")
-                                    st.write(df.head())
-
-#---------------------------------------------------------------------------------------------------------------------------------
-            with tab4:
-
-                    #st.sidebar.info(":blue-background[Feature Engineering]")
-                    col1, col2 = st.columns((0.3,0.7))  
-
-                    with col1:
-                        
-                        st.subheader("Feature Encoding",divider='blue') 
-                        categorical_columns = df.select_dtypes(include=['object']).columns
-
-                        if len(categorical_columns) == 0:
-                            st.info("There are no categorical variables in the dataset.Proceed with the original DataFrame")
-                            df = df.copy()
-                        else:
-                            for feature in df.columns: 
-                                if df[feature].dtype == 'object': 
-                                    print('\n')
-                                    print('feature:',feature)
-                                    print(pd.Categorical(df[feature].unique()))
-                                    print(pd.Categorical(df[feature].unique()).codes)
-                                    df[feature] = pd.Categorical(df[feature]).codes
-                            st.info("Categorical variables are encoded")
-
-                        csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button(label="📥 Download Encoded Data (for review)", data=csv, file_name='encoded_data.csv', mime='text/csv')
-
-                        st.divider()
-
-                        st.subheader("Feature Scaling",divider='blue')
-
-                        scaling_method = st.sidebar.selectbox("**:blue[Choose a scaling method]**", ["Standard Scaling", "Min-Max Scaling", "Robust Scaling"])
-                        df = scale_features(df,scaling_method)
-                        st.info("Data is scaled for further treatment")
-                        #st.dataframe(df.head())
-
-                        csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button(label="📥 Download Scaled Data (for review)", data=csv, file_name='scaled_data.csv', mime='text/csv')
-
-                    #----------------------------------------
-
-                    with col2:   
-
-                        st.subheader("Feature Selection",divider='blue')
-
-                        f_sel_method = ['VIF', 
-                                        'Selectkbest',
-                                        'VarianceThreshold']
-                        f_sel_method = st.sidebar.selectbox("**:blue[Choose a feature selection method]**", f_sel_method)
-                        #st.divider()                    
-
-                        if f_sel_method == 'VIF':
-
-                            st.markdown("**Method 1 : VIF**")
-                            vif_threshold = st.number_input("**VIF Threshold**", 1.5, 10.0, 5.0)
-
-                            st.markdown(f"Iterative VIF Thresholding (Threshold: {vif_threshold})")
-                            X = df.drop(columns = target_variable)
-                            vif_data = drop_high_vif_variables(df, vif_threshold)
-                            vif_data = vif_data.drop(columns = target_variable)
-                            selected_features = vif_data.columns
-                            st.markdown("**Selected Features (considering VIF values in ascending orders)**")
-                            st.write("No of features before feature-selection :",df.shape[1])
-                            st.write("No of features after feature-selection :",len(selected_features))
-                            st.table(selected_features)
-                            #st.table(vif_data)
-
-                        if f_sel_method == 'Selectkbest':
-                  
-                            st.markdown("**Method 2 : Selectkbest**")          
-                            method = st.selectbox("**Select kBest Method**", ["f_classif", "f_regression", "chi2", "mutual_info_classif"])
-                            num_features_to_select = st.slider("**Select Number of Independent Features**", min_value=1, max_value=len(df.columns), value=5)
-
-                            if "f_classif" in method:
-                                feature_selector = SelectKBest(score_func=f_classif, k=num_features_to_select)
-
-                            elif "f_regression" in method:
-                                feature_selector = SelectKBest(score_func=f_regression, k=num_features_to_select)
-
-                            elif "chi2" in method:
-                                # Make sure the data is non-negative for chi2
-                                df[df < 0] = 0
-                                feature_selector = SelectKBest(score_func=chi2, k=num_features_to_select)
-
-                            elif "mutual_info_classif" in method:
-                                # Make sure the data is non-negative for chi2
-                                df[df < 0] = 0
-                                feature_selector = SelectKBest(score_func=mutual_info_classif, k=num_features_to_select)
-
-                            X = df.drop(columns = target_variable)  
-                            y = df[target_variable]  
-                            X_selected = feature_selector.fit_transform(X, y)
-
-                            selected_feature_indices = feature_selector.get_support(indices=True)
-                            selected_features_kbest = X.columns[selected_feature_indices]
-                            st.markdown("**Selected Features (considering values in 'recursive feature elimination' method)**")
-                            st.write("No of features before feature-selection :",df.shape[1])
-                            st.write("No of features after feature-selection :",len(selected_features))
-                            st.table(selected_features_kbest)
-                            selected_features = selected_features_kbest.copy()
-
-                        if f_sel_method == 'VarianceThreshold':
-
-                            st.markdown("**Method 3 : VarianceThreshold**")  
-                            threshold = st.number_input("Variance Threshold", min_value=0.0, step=0.01, value=0.0)  
-
-                            X = df.drop(columns = target_variable)  
-                            y = df[target_variable]
-                            selector = VarianceThreshold(threshold=threshold)
-                            X_selected = selector.fit_transform(X)
-
-                            selected_feature_indices = selector.get_support(indices=True)
-                            selected_features_vth = X.columns[selected_feature_indices]          
-                            st.markdown("**Selected Features (considering values in 'variance threshold' method)**") 
-                            st.write("No of features before feature-selection :",df.shape[1])
-                            st.write("No of features after feature-selection :",len(selected_features))                   
-                            st.table(selected_features_vth)
-                            selected_features = selected_features_vth.copy()
-
-                    #----------------------------------------
-
-                    #with col3:                
-                    #st.subheader("Dataset Splitting Criteria",divider='blue')
-
-#---------------------------------------------------------------------------------------------------------------------------------
-            with tab5:
-
-                st.info("Please note that there may be some processing delay during the AutoML execution.")
                 st.sidebar.divider()
+                csv = convert_df_to_csv(df)
+                #st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
 
-                stats_expander = st.sidebar.expander("**:blue[Dataset Splitting Criteria]**", expanded=False)
-                with stats_expander:
-                        train_size = st.slider("**Test Size (as %)**", 10, 90, 70, 5)
-                        test_size = st.slider("**Test Size (as %)**", 10, 50, 30, 5)    
-                        random_state = st.number_input("**Random State**", 0, 100, 42)
-                        n_jobs = st.number_input("**Parallel Processing (n_jobs)**", -10, 10, 1)    
+            #masked_image, mask = remove_background(image)
+            #st.image(masked_image,caption="Masked Image", use_column_width=True)
 
-                X = df[selected_features]
-                y = df[target_variable]
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+        with col2:
 
-            #----------------------------------------                 
-                if ml_type == 'Classification': 
+                num_clusters = st.sidebar.slider("**Select no of clusters**", 1, 10, 5, 1)
+                clusters = segment_molecules(diameters, num_clusters)
 
-                    clf_typ = st.sidebar.selectbox("**:blue[Choose the type of target]**", ["Binary", "MultiClass"]) 
+                st.subheader("Clusters", divider='blue')
+                df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
+                cluster_stat = df_c.groupby("Cluster").agg(Max_Diameter =("Diameter (px)", "max"),
+                                                           Min_Diameter =("Diameter (px)", "min"),
+                                                           Mean_Diameter =("Diameter (px)", "mean"),).reset_index()                
+                st.dataframe(cluster_stat, use_container_width=True)
 
-                    #----------------------------------------
-                    if clf_typ == 'Binary':
-                        #if st.sidebar.button("Submit"):
+                cluster_no = df_c.groupby('Cluster').agg({'Diameter (px)': ['count']})
+                cluster_no.columns = ['Number of Molecules']
+                st.dataframe(cluster_no, use_container_width=True)
 
-                            col1, col2 = st.columns((0.4,0.6))  
-                            with col1:
-                                    
-                                with st.container():
+                #st.divider()
+                csv_clusters = convert_df_to_csv(df_c)
 
-                                    st.subheader("Comparison",divider='blue')
-                                    with st.spinner("Setting up and comparing models..."):
+                st.sidebar.download_button(label="Download molecule statistics as CSV",data=csv,file_name='molecule_diameters.csv',mime='text/csv',)
+                st.sidebar.download_button(label="Download cluster data as CSV",data=csv_clusters,file_name='molecule_clusters.csv',mime='text/csv',)
 
-                                        results = []
-                                        for name, model in models.items():
-                                            metrics = evaluate_model(model, X_train, X_test, y_train, y_test)
-                                            metrics["Model"] = name
-                                            results.append(metrics)
-                                        results_df = pd.DataFrame(results)
-                                        best_metrics = results_df.loc[:, results_df.columns != "Model"].idxmax()
-                                        st.dataframe(results_df,hide_index=True, use_container_width=True)
+        with col3:
 
-                                        st.divider()
+            gray_image = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)                                # Convert the image to grayscale
+            blurred = cv2.GaussianBlur(gray_image, (5, 5), 0)                                       # Apply Gaussian blur to reduce noise
 
-                                        best_model_clf = results_df.loc[results_df["Accuracy"].idxmax(), "Model"]
-                                        best_model = models[best_model_clf]
-                                        best_model.fit(X_train, y_train)
-                                        y_pred_best = best_model.predict(X_test)
-                                        y_proba_best = best_model.predict_proba(X_test)[:, 1] if hasattr(best_model, "predict_proba") else None                                        
-                                        st.info(f"The best model is: **{best_model_clf}**")
-
-                    #----------------------------------------
-                    elif clf_typ == 'MultiClass':
-                            
-                            col1, col2 = st.columns((0.4,0.6))  
-                            with col1:
-                                
-                                with st.container():
-                                    
-                                    st.subheader("Comparison",divider='blue')
-                                    with st.spinner("Setting up and comparing models..."):
-                
-                                        results = []
-                                        for name, model in models.items():
-                                            metrics = evaluate_model(model, X_train, X_test, y_train, y_test, multi_class=True)
-                                            metrics["Model"] = name
-                                            results.append(metrics)
-                                        results_df = pd.DataFrame(results)
-                                        best_metrics = results_df.loc[:, results_df.columns != "Model"].idxmax()
-                                        st.dataframe(results_df,hide_index=True, use_container_width=True)
-
-                                        st.divider()
-
-                                        best_model_clf = results_df.loc[results_df["Accuracy"].idxmax(), "Model"]
-                                        best_model = models[best_model_clf]
-                                        best_model.fit(X_train, y_train)
-                                        y_pred_best = best_model.predict(X_test)
-                                        y_proba_best = best_model.predict_proba(X_test) if hasattr(best_model, "predict_proba") else None
-                                        st.info(f"The best model is : **{best_model_clf}**")
-
-                    #----------------------------------------                    
-                    st.subheader("Importance",divider='blue')
-
-                    if best_model_clf == "Logistic Regression":
-                        importance = best_model.coef_.flatten()
-                    else:
-                        importance = best_model.feature_importances_
-
-                    col1, col2 = st.columns((0.15,0.85))
-                    with col1:
-                        with st.container():
-
-                            importance_df = pd.DataFrame({"Feature": selected_features,"Importance": importance})
-                            st.dataframe(importance_df, hide_index=True, use_container_width=True)
-
-                    with col2:
-                        with st.container():
-                                        
-                            plot_data_imp = [go.Bar(x = importance_df['Feature'],y = importance_df['Importance'])]
-                            plot_layout_imp = go.Layout(xaxis = {"title": "Feature"},yaxis = {"title": "Importance"},title = 'Feature Importance',)
-                            fig = go.Figure(data = plot_data_imp, layout = plot_layout_imp)
-                            st.plotly_chart(fig,use_container_width = True)
-
-            #----------------------------------------                
-                if ml_type == 'Regression': 
-
-                    col1, col2 = st.columns((0.4,0.6))  
-                    with col1:
-                                
-                        with st.container():
-                                    
-                            st.subheader("Comparison",divider='blue')
-                            with st.spinner("Setting up and comparing models..."):
-
-                                results = []
-                                for name, model in regressors.items():
-                                    model.fit(X_train, y_train)
-                                    y_pred = model.predict(X_test)
-                                    mae, mse, rmse, r2, rmsle, mape_value = calculate_metrics(y_test, y_pred)
-    
-                                    results.append({"Model": name,
-                                            "MAE": round(mae, 2),
-                                            "MSE": round(mse, 2),
-                                            "RMSE": round(rmse, 2),
-                                            "R2": round(r2, 2),
-                                            "RMSLE": round(rmsle, 2) if rmsle else "N/A",
-                                            "MAPE": round(mape_value, 2)})
-                            
-                                results_df = pd.DataFrame(results)
-                                st.dataframe(results_df,hide_index=True, use_container_width=True)
-
-                                st.divider()
-                                
-                                best_model_reg = results_df.loc[results_df['R2'].idxmax(), 'Model']
-                                st.info(f"The best model is : **{best_model_reg}**")
-                                best_model = regressors[best_model_reg]
-                                y_pred_best = best_model.predict(X_test)
-                                residuals = y_test - y_pred_best    
-
-                    #----------------------------------------  
-                    st.subheader("Importance",divider='blue')
-
-                    if best_model_reg == "Linear Regression":
-                        feature_importance = pd.DataFrame({'Feature': X.columns, 'Coefficient': best_model.coef_[0]})
-                    else:
-                        importance = best_model.feature_importances_
-
-                    col1, col2 = st.columns((0.15,0.85))
-                    with col1:
-                        with st.container():
-
-                            importance_df = pd.DataFrame({"Feature": selected_features,"Importance": importance})
-                            st.dataframe(importance_df, hide_index=True, use_container_width=True)
-
-                    with col2:
-                        with st.container():
-                                        
-                            plot_data_imp = [go.Bar(x = importance_df['Feature'],y = importance_df['Importance'])]
-                            plot_layout_imp = go.Layout(xaxis = {"title": "Feature"},yaxis = {"title": "Importance"},title = 'Feature Importance',)
-                            fig = go.Figure(data = plot_data_imp, layout = plot_layout_imp)
-                            st.plotly_chart(fig,use_container_width = True)
-
-            #----------------------------------------              
-                if ml_type == 'Clustering': 
-
-                    col1, col2 = st.columns((0.4,0.6))  
-                    with col1:
-                                
-                        with st.container():
-                                    
-                            st.subheader("Comparison",divider='blue')
-                            with st.spinner("Setting up and comparing models..."):
-
-                                results = []
-                                for name, algorithm in clustering_algorithms.items():
-                                    try:
-                                        if name == "KModes":
-                                            labels = algorithm.fit_predict(X)
-                                        else:
-                                            labels = algorithm.fit_predict(X)
-        
-                                        silhouette = silhouette_score(X, labels) if len(set(labels)) > 1 else None
-                                        calinski = calinski_harabasz_score(X, labels) if len(set(labels)) > 1 else None
-                                        davies = davies_bouldin_score(X, labels) if len(set(labels)) > 1 else None
-                                        homogeneity = homogeneity_score(df[target_variable], labels)
-                                        rand_index = adjusted_rand_score(df[target_variable], labels)
-                                        completeness = completeness_score(df[target_variable], labels)
-        
-                                        results.append({"Algorithm": name,
-                                                        "Silhouette": silhouette,
-                                                        "Calinski-Harabasz": calinski,
-                                                        "Davies-Bouldin": davies,
-                                                        "Homogeneity": homogeneity,
-                                                        "Rand Index": rand_index,
-                                                        "Completeness": completeness})
-                                    except Exception as e:
-                                        print(f"Algorithm {name} failed: {e}")
-
-                                results_df = pd.DataFrame(results)
-                                st.dataframe(results_df,hide_index=True, use_container_width=True)                      
-
-                                st.divider()
-                                
-                                best_model_clust = results_df.loc[results_df['Silhouette'].idxmax(), 'Algorithm']
-                                st.info(f"The best model is : **{best_model_clust}**")
-                                best_model = clustering_algorithms[best_model_clust]
-
-#---------------------------------------------------------------------------------------------------------------------------------
-            with tab6:
-               
-                if ml_type == 'Classification':        
-                    
-                    if clf_typ == 'Binary':
-
-                        col1, col2 = st.columns(2)  
-                        with col1:
-                            with st.container():     
-                                                           
-                                    report = classification_report(y_test, y_pred_best, output_dict=True)
-                                    report_df = pd.DataFrame(report).transpose()
-                                    st.dataframe(report_df,use_container_width=True)
-
-                        with col2:
-                            with st.container():  
-
-                                    cm = confusion_matrix(y_test, y_pred_best)
-                                    plt.figure(figsize=(8,3))
-                                    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-                                    plt.title(f"Confusion Matrix for {best_model_clf}", fontsize=8)
-                                    plt.xlabel("Predicted")
-                                    plt.ylabel("Actual")
-                                    st.pyplot(plt,use_container_width=True)
-
-                        st.divider()           
+            # -------------------------------------------------------------------------------------------------------
+            #stats_expander = st.expander("**:red[OTSU Thresholding]**", expanded=False)
+            #with stats_expander:
+            st.subheader("OTSU Thresholding", divider='blue')
+            with st.container(height=400,border=True):    
                         
-                        col1, col2 = st.columns(2)  
-                        with col1: 
-                            with st.container():
-                                    
-                                    fpr, tpr, _ = roc_curve(y_test, y_proba_best)
-                                    plt.figure(figsize=(8,3))
-                                    plt.plot(fpr, tpr, color="blue", lw=2, label=f"AUC = {auc(fpr, tpr):.2f}")
-                                    plt.plot([0, 1], [0, 1], color="gray", linestyle="--")
-                                    plt.xlabel("False Positive Rate")
-                                    plt.ylabel("True Positive Rate")
-                                    plt.title(f"AUC Curve for {best_model_clf}", fontsize=8)
-                                    plt.legend(loc="lower right")
-                                    st.pyplot(plt,use_container_width=True)
-
-                                    precisions, recalls, _ = precision_recall_curve(y_test, y_proba_best)
-                                    plt.figure(figsize=(8,3))
-                                    plt.plot(recalls, precisions, color="purple", lw=2)
-                                    plt.xlabel("Recall")
-                                    plt.ylabel("Precision")
-                                    plt.title(f"Precision-Recall Curve for {best_model_clf}", fontsize=8)
-                                    st.pyplot(plt,use_container_width=True)
-
-                                    precisions, recalls, thresholds = precision_recall_curve(y_test, y_proba_best)
-                                    plt.figure(figsize=(8,3))
-                                    plt.plot(thresholds, precisions[:-1], "b--", label="Precision")
-                                    plt.plot(thresholds, recalls[:-1], "g-", label="Recall")
-                                    plt.xlabel("Threshold")
-                                    plt.title(f"Discrimination Threshold for {best_model_clf}", fontsize=8)
-                                    plt.legend(loc="best")
-                                    st.pyplot(plt,use_container_width=True)
-
-                        with col2:
-                            with st.container():
-
-                                    plt.figure(figsize=(8,3))
-                                    skplt.metrics.plot_lift_curve(y_test, best_model.predict_proba(X_test))
-                                    plt.title(f"Lift Curve for {best_model_clf}", fontsize=8)
-                                    st.pyplot(plt,use_container_width=True)
-                                    
-                                    plt.figure(figsize=(8,3))
-                                    skplt.metrics.plot_cumulative_gain(y_test, best_model.predict_proba(X_test))
-                                    plt.title(f"Gain Curve for {best_model_clf}", fontsize=8)
-                                    st.pyplot(plt,use_container_width=True) 
-
-                    if clf_typ == 'MultiClass':
-
-                        col1, col2 = st.columns(2)  
-                        with col1:
-                            with st.container():  
-
-                                    report = classification_report(y_test, y_pred_best, output_dict=True)
-                                    report_df = pd.DataFrame(report).transpose()
-                                    st.dataframe(report_df,use_container_width=True)  
-
-                        with col2:
-                            with st.container():  
-
-                                    cm = confusion_matrix(y_test, y_pred_best)
-                                    plt.figure(figsize=(8,3))
-                                    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
-                                    plt.title(f"Confusion Matrix for {best_model_clf}", fontsize=8)
-                                    plt.xlabel("Predicted")
-                                    plt.ylabel("Actual")
-                                    st.pyplot(plt,use_container_width=True)
-
-            #----------------------------------------                
-                if ml_type == 'Regression': 
-
-                        col1, col2 = st.columns(2)  
-                        with col1:
-                            with st.container():                     
-                                                      
-                                    plt.figure(figsize=(8, 3))
-                                    sns.residplot(x=y_pred_best, y=residuals, lowess=True)
-                                    plt.title(f"Residual Plot for {best_model_reg}")
-                                    plt.xlabel('Predicted')
-                                    plt.ylabel('Residuals')
-                                    st.pyplot(plt,use_container_width=True)
-    
-                                    plt.figure(figsize=(8, 3))
-                                    sns.scatterplot(x=y_test, y=y_pred_best)
-                                    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], '--', color='red')
-                                    plt.title(f"Prediction Error Plot for {best_model_reg}")
-                                    plt.xlabel('Actual')
-                                    plt.ylabel('Predicted')
-                                    st.pyplot(plt,use_container_width=True) 
-
-                        with col2:
-                            with st.container(): 
-
-                                    plot_learning_curve(best_model, X_train, y_train)  
-
-                                    param_name = 'alpha'  
-                                    param_range = np.logspace(-3, 3, 10)
-                                    plot_validation_curve(best_model, X_train, y_train, param_name, param_range)
-
-            #----------------------------------------                
-                if ml_type == 'Clustering': 
-                                
-                    best_labels = best_model.fit_predict(X)
-                    df['Cluster_Labels'] = best_labels
-                    plt.figure(figsize=(8, 3))
-                    sns.scatterplot(x=X.iloc[:, 0], y=X.iloc[:, 1], hue=best_labels, palette="viridis")
-                    plt.title(f"Cluster plot for {best_model_clust}")
-                    plt.show()
-                    st.pyplot(plt,use_container_width = True)      
-
-                    st.divider()
-
-                    if "KMeans" in clustering_algorithms:
-                                    inertia_values = []
-                                    K_range = range(1, 11)
-                                    for k in K_range:
-                                        kmeans = KMeans(n_clusters=k)
-                                        kmeans.fit(X)
-                                        inertia_values.append(kmeans.inertia_)
-
-                                    col1, col2 = st.columns((0.2,0.8))  
-                                    with col1:  
-                                        with st.container(): 
-
-                                            elbow_df = pd.DataFrame({'K': K_range,'Inertia': inertia_values})  
-                                            st.dataframe(elbow_df,hide_index=True, use_container_width=True)
-
-                                            with col2:  
-                                                with st.container(): 
-                                                    
-                                                    plt.figure(figsize=(8,3))
-                                                    plt.plot(K_range, inertia_values, marker='o', linestyle='--')
-                                                    plt.title('Elbow Method for KMeans')
-                                                    plt.xlabel('Number of clusters')
-                                                    plt.ylabel('Inertia')
-                                                    plt.show()
-                                                    st.pyplot(plt,use_container_width = True)
-
-                    st.divider()
-
-                    if best_model_clust == "KMeans":  
-                        sample_silhouette_values = silhouette_samples(X, best_labels)
-
-                        col1, col2 = st.columns((0.2,0.8))  
-                        with col1:  
-                            with st.container(): 
-                        
-                                silhouette_df = pd.DataFrame({'Data Point Index': np.arange(len(X)),'Cluster': best_labels,'Silhouette Coefficient': sample_silhouette_values})
-                                st.dataframe(silhouette_df,hide_index=True, use_container_width=True)
-
-                                with col2:  
-                                    with st.container(): 
-
-                                        y_lower = 10
-                                        plt.figure(figsize=(8,3))
-
-                                        for i in range(3):  
-                                            ith_cluster_silhouette_values = sample_silhouette_values[best_labels == i]
-                                            ith_cluster_silhouette_values.sort()
-                                            size_cluster_i = ith_cluster_silhouette_values.shape[0]
-                                            y_upper = y_lower + size_cluster_i
-
-                                            color = plt.cm.nipy_spectral(float(i) / 3)
-                                            plt.fill_betweenx(np.arange(y_lower, y_upper), 0, ith_cluster_silhouette_values, facecolor=color, edgecolor=color, alpha=0.7)
-                                            plt.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
-                                            y_lower = y_upper + 10
-
-                                        plt.axvline(x=silhouette_score(X, best_labels), color="red", linestyle="--")
-                                        plt.title("Silhouette plot for the best model (KMeans)")
-                                        plt.xlabel("Silhouette coefficient")
-                                        plt.ylabel("Cluster")
-                                        plt.show()
-                                        st.pyplot(plt,use_container_width = True)        
-
-#---------------------------------------------------------------------------------------------------------------------------------
-            with tab7:
-               
-                if ml_type == 'Classification':        
-                        
-                        best_metrics=results_df.loc[results_df["Model"] == best_model_clf].iloc[0].to_dict()
-                        final_results_df = pd.DataFrame({"Metric": ["Type of Problem",
-                                                    "Target Variable",
-                                                    "Type of Target",
-                                                    "Scaling Method", 
-                                                    "Feature Selection",
-                                                    "Best Algorithm", 
-                                                    "Accuracy", 
-                                                    "AUC", 
-                                                    "Precision", 
-                                                    "Recall", 
-                                                    "F1 Score", 
-                                                    #"Best Feature(s)",
-                                                    ],
-                                            "Value": [ml_type,
-                                                    target_variable,
-                                                    clf_typ,
-                                                    scaling_method, 
-                                                    f_sel_method,
-                                                    best_model_clf, 
-                                                    round(best_metrics["Accuracy"],2), 
-                                                    round(best_metrics["AUC"],2), 
-                                                    round(best_metrics["Precision"],2),
-                                                    round(best_metrics["Recall"],2), 
-                                                    round(best_metrics["F1 Score"],2), 
-                                                    #', '.join(best_features), 
-                                                    ]})
-                        col1, col2 = st.columns((0.2,0.8))
-                        with col1:
-
-                            st.subheader("Output",divider='blue')
-                            st.dataframe(final_results_df, hide_index=True, use_container_width=True)
-
-                        with col2:
-                            X_test_results = X_test.copy()  
-                            X_test_results["Actual"] = y_test
-                            X_test_results["Predicted Label"] = y_pred_best
-                            if y_proba_best is not None:
-                                if clf_typ == "Binary":
-                                    X_test_results["Prediction Score"] = y_proba_best  # For binary classification, use the second column of predict_proba
-                                else:
-                                    for i in range(y_proba_best.shape[1]):
-                                        X_test_results[f"Class {i} Probability"] = y_proba_best[:, i]
-
-                            st.subheader("Prediction & Score",divider='blue')
-                            st.dataframe(X_test_results, use_container_width=True)
-                            st.download_button(label="Download predicted data as CSV",data=X_test_results.to_csv(index=False),file_name="classification_predictions.csv",mime="text/csv")
-
-            #----------------------------------------  
-                if ml_type == 'Regression':  
-
-                        best_metrics=results_df.loc[results_df["Model"] == best_model_reg].iloc[0].to_dict()
-                        final_results_df = pd.DataFrame({"Metric": ["Type of Problem",
-                                                    "Target Variable",
-                                                    "Scaling Method", 
-                                                    "Feature Selection",
-                                                    "Best Algorithm", 
-                                                    "MAE", 
-                                                    "MSE", 
-                                                    "RMSE", 
-                                                    "R2", 
-                                                    "MAPE", 
-                                                    #"Best Feature(s)",
-                                                    ],
-                                            "Value": [ml_type,
-                                                    target_variable,
-                                                    scaling_method, 
-                                                    f_sel_method,
-                                                    best_model_reg, 
-                                                    round(best_metrics["MAE"],2), 
-                                                    round(best_metrics["MSE"],2), 
-                                                    round(best_metrics["RMSE"],2),
-                                                    round(best_metrics["R2"],2), 
-                                                    round(best_metrics["MAPE"],2), 
-                                                    #', '.join(best_features), 
-                                                    ]})
-                        col1, col2 = st.columns((0.2,0.8))
-                        with col1:
-
-                            st.subheader("Output",divider='blue')                            
-                            st.dataframe(final_results_df, hide_index=True, use_container_width=True)
-
-                        with col2:
-                             
-                            best_model.fit(X_train, y_train)
-                            y_pred_best = best_model.predict(X_test)
-                            X_test_results_reg = X_test.copy()  
-                            X_test_results_reg["Actual"] = y_test 
-                            X_test_results_reg["Predicted"] = y_pred_best 
-
-                            st.subheader("Prediction & Score",divider='blue')
-                            st.dataframe(X_test_results_reg, use_container_width=True)
-                            st.download_button(label="Download predicted data as CSV",data=X_test_results_reg.to_csv(index=False),file_name="regression_predictions.csv",mime="text/csv")
-
-            #----------------------------------------  
-                if ml_type == 'Clustering':    
+                    _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)                # OTSU Thresholding
+                    otsu_contours, _ = cv2.findContours(otsu_thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)                # Find contours for OTSU Threshold
+                    img_with_otsu_contours = cv2.drawContours(img_array.copy(), otsu_contours, -1, (0, 255, 0), 2)          # Draw contours for OTSU
+                    st.image(img_with_otsu_contours, caption="OTSU Filter: Detected Particles", use_column_width=True)
+                    otsu_valid_particles = 0                                                                                # Calculate valid particles and sphericity for OTSU
+                    otsu_total_particles = len(otsu_contours)
+                    otsu_sphericities = []
+                    otsu_aspect_ratios = []
+            
+                    for contour in otsu_contours:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        rect = cv2.minAreaRect(contour)                                                                     # Calculate aspect ratio of the minimum area rectangle
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = min(width, height) / max(width, height)
+                            otsu_aspect_ratios.append(aspect_ratio)
+                        if perimeter > 0:
+                            sphericity = 4 * np.pi * (area / (perimeter ** 2))                                              # Sphericity formula
+                            otsu_sphericities.append(sphericity)
+                            otsu_valid_particles += 1                                                                       # Assuming all particles are valid for this example
+            
+                        otsu_avg_sphericity = np.mean(otsu_sphericities) if otsu_sphericities else 0
+                        otsu_area_avg_sphericity = np.mean([s * area for s, area in zip(otsu_sphericities, [cv2.contourArea(c) for c in otsu_contours])]) if otsu_sphericities else 0
+                        otsu_avg_aspect_ratio = np.mean(otsu_aspect_ratios) if otsu_aspect_ratios else 0
+            # -------------------------------------------------------------------------------------------------------
+            #stats_expander = st.expander("**:red[Canny Edge Thresholding]**", expanded=False)
+            #with stats_expander:
+            st.subheader("Canny Edge Thresholding", divider='blue')
+            with st.container(height=400,border=True):  
                      
-                        best_metrics=results_df.loc[results_df["Algorithm"] == best_model_clust].iloc[0].to_dict()
-                        final_results_df = pd.DataFrame({"Metric": ["Type of Problem",
-                                                    "Target Variable",
-                                                    "Scaling Method", 
-                                                    "Feature Selection",
-                                                    "Best Algorithm", 
-                                                    "Silhouette", 
-                                                    "Calinski-Harabasz", 
-                                                    "Davies-Bouldin", 
-                                                    "Homogeneity", 
-                                                    "Rand Index", 
-                                                    #"Best Feature(s)",
-                                                    ],
-                                            "Value": [ml_type,
-                                                    target_variable,
-                                                    scaling_method, 
-                                                    f_sel_method,
-                                                    best_model_clust, 
-                                                    round(best_metrics["Silhouette"],2), 
-                                                    round(best_metrics["Calinski-Harabasz"],2), 
-                                                    round(best_metrics["Davies-Bouldin"],2),
-                                                    round(best_metrics["Homogeneity"],2), 
-                                                    round(best_metrics["Rand Index"],2), 
-                                                    #', '.join(best_features), 
-                                                    ]})
-                        col1, col2 = st.columns((0.2,0.8))
-                        with col1:
+                    canny_edges = cv2.Canny(blurred, 80, 170)                                                               # Canny Edge Detection
+                    canny_contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)             # Find contours for Canny Edge Detection
+                    img_with_canny_contours = cv2.drawContours(img_array.copy(), canny_contours, -1, (255, 0, 0), 2)        # Draw contours for Canny
+                    st.image(img_with_canny_contours, caption="Canny Edge Filter: Detected Particles", use_column_width=True)
+                    canny_valid_particles = 0                                                                               # Calculate valid particles and sphericity for Canny Edge
+                    canny_total_particles = len(canny_contours)
+                    canny_sphericities = []
+                    canny_aspect_ratios = []
+            
+                    for contour in canny_contours:
+                        area = cv2.contourArea(contour)
+                        perimeter = cv2.arcLength(contour, True)
+                        rect = cv2.minAreaRect(contour)                                                                     # Calculate aspect ratio of the minimum area rectangle
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = min(width, height) / max(width, height)
+                            canny_aspect_ratios.append(aspect_ratio)
+                        if perimeter > 0:
+                            sphericity = 4 * np.pi * (area / (perimeter ** 2))                                              # Sphericity formula
+                            canny_sphericities.append(sphericity)
+                            canny_valid_particles += 1                                                                      # Assuming all particles are valid for this example
+                        
+                        canny_avg_sphericity = np.mean(canny_sphericities) if canny_sphericities else 0
+                        canny_area_avg_sphericity = np.mean([s * area for s, area in zip(canny_sphericities, [cv2.contourArea(c) for c in canny_contours])]) if canny_sphericities else 0
+                        canny_avg_aspect_ratio = np.mean(canny_aspect_ratios) if canny_aspect_ratios else 0
+            # -------------------------------------------------------------------------------------------------------    
+            #st.divider()
+            data = {"Filter Type": ["OTSU", "Canny Edge"],
+                    "Valid/Total Particles": [f"{otsu_valid_particles}/{otsu_total_particles}", f"{canny_valid_particles}/{canny_total_particles}"],
+                    "Average Sphericity": [otsu_avg_sphericity, canny_avg_sphericity],
+                    "Area Averaged Sphericity": [otsu_area_avg_sphericity, canny_area_avg_sphericity],
+                    "Average Aspect Ratio": [otsu_avg_aspect_ratio, canny_avg_aspect_ratio],}
+            df = pd.DataFrame(data)
+            st.dataframe(df)
 
-                            st.subheader("Output",divider='blue')                            
-                            st.dataframe(final_results_df, hide_index=True, use_container_width=True)
+    # -------------------------------------------------------------------------------------------------------
+
+    st.sidebar.divider()
+    st.sidebar.header("Hyperparameters", divider='blue')
+
+    aspect_ratio_threshold = st.sidebar.slider("**aspect_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.8)
+    sphericity_threshold = st.sidebar.slider("**sphericity_threshold**", min_value=0.01, max_value=0.99, value=0.7)
+    particle_ratio_threshold = st.sidebar.slider("**particle_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.5)
+
+    st.sidebar.divider()
+
+    if otsu_avg_aspect_ratio > aspect_ratio_threshold and otsu_avg_sphericity > sphericity_threshold and (otsu_valid_particles / otsu_total_particles) > particle_ratio_threshold:
+        st.sidebar.success('''
+                           Based on above hyperparameters, the image considered as :
+                           **GOOD**
+                           ''')
+    elif canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold:
+        st.sidebar.success('''
+                           Based on above hyperparameters, the image considered as :
+                           **GOOD**
+                           ''')
+    else:
+        st.sidebar.error('''
+                        Based on above hyperparameters, the image considered as :
+                        **BAD**
+                        ''')
