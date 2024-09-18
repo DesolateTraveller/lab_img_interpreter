@@ -306,8 +306,17 @@ if uploaded_file is not None:
     st.sidebar.divider()
 
     if otsu_avg_aspect_ratio > aspect_ratio_threshold and otsu_avg_sphericity > sphericity_threshold and (otsu_valid_particles / otsu_total_particles) > particle_ratio_threshold:
-        st.sidebar.success("**GOOD**")
+        st.sidebar.success('''
+                           Based on above hyperparameters, the image considered as
+                           **GOOD**
+                           ''')
     elif canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold:
-        st.sidebar.success("**GOOD**")
+        st.sidebar.success('''
+                           Based on above hyperparameters, the image considered as
+                           **GOOD**
+                           ''')
     else:
-        st.sidebar.error("**BAD**")
+        st.sidebar.error('''
+                        Based on above hyperparameters, the image considered as
+                        **BAD**
+                        ''')
