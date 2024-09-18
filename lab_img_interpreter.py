@@ -153,7 +153,7 @@ if uploaded_file is not None:
         col1, col2, col3 = st.columns((0.3,0.3,0.4))
         with col1:
 
-                #st.subheader("Statistics", divider='blue')
+                st.subheader("Statistics", divider='blue')
         
                 df = pd.DataFrame(diameters, columns=["Diameter (px)"])
                 max_diameter = df["Diameter (px)"].max()
@@ -200,9 +200,7 @@ if uploaded_file is not None:
                 num_clusters = st.sidebar.slider("**Select no of clusters**", 1, 10, 5, 1)
                 clusters = segment_molecules(diameters, num_clusters)
 
-                st.divider()
-
-                st.write("**Clusters:**")
+                st.subheader("Clusters", divider='blue')
                 df_c = pd.DataFrame({"Diameter (px)": diameters,"Cluster": clusters})
                 cluster_stat = df_c.groupby("Cluster").agg(Max_Diameter =("Diameter (px)", "max"),
                                                            Min_Diameter =("Diameter (px)", "min"),
