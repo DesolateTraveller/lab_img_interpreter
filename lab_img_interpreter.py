@@ -21,7 +21,7 @@ from skimage import color, filters, measure, morphology
 st.set_page_config(page_title="Particle Image Analysis | v0.1",
                     layout="wide",
                     page_icon="🖼️",            
-                    initial_sidebar_state="collapsed")
+                    initial_sidebar_state="auto",)
 #----------------------------------------
 st.title(f""":rainbow[Particle Image Analysis]""")
 st.markdown(
@@ -109,7 +109,7 @@ def segment_molecules(diameters, num_clusters):
 ### Main app
 #---------------------------------------------------------------------------------------------------------------------------------
 st.sidebar.header("Input", divider='blue')
-uploaded_file = st.sidebar.file_uploader("Upload an image of molecules", type=["jpg", "jpeg", "png"])
+uploaded_file = st.sidebar.file_uploader("**Upload a particle image**",type=["jpg", "jpeg", "png"])
 #st.divider()
 
 if uploaded_file is not None:
