@@ -288,6 +288,7 @@ if uploaded_file is not None:
             #st.divider()
             data = {"Filter Type": ["OTSU", "Canny Edge"],
                     "Valid/Total Particles": [f"{otsu_valid_particles}/{otsu_total_particles}", f"{canny_valid_particles}/{canny_total_particles}"],
+                    "Particle Ratio": [(otsu_valid_particles/otsu_total_particles), (canny_valid_particles/canny_total_particles)],
                     "Average Sphericity": [otsu_avg_sphericity, canny_avg_sphericity],
                     "Area Averaged Sphericity": [otsu_area_avg_sphericity, canny_area_avg_sphericity],
                     "Average Aspect Ratio": [otsu_avg_aspect_ratio, canny_avg_aspect_ratio],}
@@ -310,13 +311,23 @@ if uploaded_file is not None:
                            Based on above hyperparameters, the image considered as :
                            **GOOD**
                            ''')
+        st.sidebar.success("**Critical : OTSU criteria**")
     elif canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold:
         st.sidebar.success('''
                            Based on above hyperparameters, the image considered as :
                            **GOOD**
                            ''')
-    else:
+        st.sidebar.success("**Critical : Canny Edge criteria**")
+    elif otsu_avg_aspect_ratio < aspect_ratio_threshold and otsu_avg_sphericity < sphericity_threshold and (otsu_valid_particles / otsu_total_particles) < particle_ratio_threshold:
         st.sidebar.error('''
-                        Based on above hyperparameters, the image considered as :
-                        **BAD**
-                        ''')
+                           Based on above hyperparameters, the image considered as :
+                           **BAD**
+                           ''')
+        st.sidebar.error("**Critical : OTSU criteria**")
+    else:
+        canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold
+        st.sidebar.error('''
+                           Based on above hyperparameters, the image considered as :
+                           **BAD**
+                           ''')
+        st.sidebar.error("**Critical : Canny Edge criteria**")
