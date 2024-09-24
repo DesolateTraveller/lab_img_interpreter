@@ -105,6 +105,17 @@ def segment_molecules(diameters, num_clusters):
     kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(np.array(diameters).reshape(-1, 1))
     clusters = kmeans.labels_
     return clusters
+
+@st.cache_data(ttl="2h") 
+def find_critical_parameter(aspect_ratio, sphericity, particle_ratio):
+    critical_param = []
+    if aspect_ratio <= aspect_ratio_threshold:
+        critical_param.append("Aspect Ratio")
+    if sphericity <= sphericity_threshold:
+        critical_param.append("Sphericity")
+    if particle_ratio <= particle_ratio_threshold:
+        critical_param.append("Particle Ratio")
+    return critical_param
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Main app
 #---------------------------------------------------------------------------------------------------------------------------------
@@ -303,6 +314,13 @@ if uploaded_file is not None:
     aspect_ratio_threshold = st.sidebar.slider("**aspect_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.8)
     sphericity_threshold = st.sidebar.slider("**sphericity_threshold**", min_value=0.01, max_value=0.99, value=0.7)
     particle_ratio_threshold = st.sidebar.slider("**particle_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.5)
+
+    otsu_criteria_met = (otsu_avg_aspect_ratio > aspect_ratio_threshold and otsu_avg_sphericity > sphericity_threshold and (otsu_valid_particles / otsu_total_particles) > particle_ratio_threshold)
+    canny_criteria_met = (canny_avg_aspect_ratio > aspect_ratio_threshold and canny_avg_sphericity > sphericity_threshold and (canny_valid_particles / canny_total_particles) > particle_ratio_threshold)
+    otsu_particle_ratio = (otsu_valid_particles / otsu_total_particles)
+    canny_particle_ratio = (canny_valid_particles / canny_total_particles)
+    critical_params_otsu = find_critical_parameter(otsu_avg_aspect_ratio, otsu_avg_sphericity, otsu_particle_ratio)
+    critical_params_canny = find_critical_parameter(canny_avg_aspect_ratio, canny_avg_sphericity, canny_particle_ratio)
 
     st.sidebar.divider()
 
