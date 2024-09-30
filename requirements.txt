@@ -14,3 +14,4 @@ streamlit_cropper
 scikit-image
 opencv-python-headless
 scikit-learn
+openpyxl
