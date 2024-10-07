@@ -24,12 +24,12 @@ st.set_page_config(page_title="Particle Image Analysis | v0.1",
                     initial_sidebar_state="auto",)
 #----------------------------------------
 st.title(f""":rainbow[Particle Image Analysis]""")
-st.markdown(
-    '''
-    Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
-    for best view of the app, please **zoom-out** the browser to **75%**.
-    ''',
-    unsafe_allow_html=True)
+#st.markdown(
+    #'''
+    #Created by | <a href="mailto:avijit.mba18@gmail.com">Avijit Chakraborty</a> ( :envelope: [Email](mailto:avijit.mba18@gmail.com) | :bust_in_silhouette: [LinkedIn](https://www.linkedin.com/in/avijit2403/) | :computer: [GitHub](https://github.com/DesolateTraveller) ) |
+    #for best view of the app, please **zoom-out** the browser to **75%**.
+    #''',
+    #unsafe_allow_html=True)
 st.info('**A lightweight image-processing streamlit app that interprets the laboratory and microsopic images**', icon="ℹ️")
 st.divider()
 #----------------------------------------
