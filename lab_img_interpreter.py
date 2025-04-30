@@ -426,18 +426,19 @@ def analyze_image_cached(image_bytes, filename):
     return analysis, width, height, num_particles, particle_data, shape_counts
 
 #----------------------------------------
-@st.cache_data
+@st.cache_data(ttl="2h")    
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8')
 
 #----------------------------------------
-@st.cache_resource
+@st.cache_data(ttl="2h")    
 def save_plot(fig):
     path = os.path.join(tempfile.gettempdir(), "all_metrics.png")
     fig.savefig(path, bbox_inches="tight")
     return path
 
 #----------------------------------------
+@st.cache_data(ttl="2h")    
 def calculate_image_features(image):
         processed = preprocess_image(image)
         contours = detect_particles(image)
@@ -462,7 +463,15 @@ def calculate_image_features(image):
             features_dict[f"shape_{shape.lower()}"] = shape_counts.get(shape, 0)
 
         return pd.DataFrame([features_dict])
-   
+
+#----------------------------------------
+@st.cache_data(ttl="2h")    
+def highlight_status(val):
+    if val == "OK":
+        return "background-color: lightgreen; font-weight: bold"
+    elif val == "NOT OK":
+        return "background-color: lightcoral; font-weight: bold"
+    return ""
 
 #---------------------------------------------------------------------------------------------------------------------------------
 ### Main app
@@ -587,10 +596,10 @@ with col1:
                         st.session_state.image_info_df = pd.DataFrame(st.session_state.analysis_results)
                         st.session_state.image_info_df = st.session_state.image_info_df[["Image"] + [col for col in st.session_state.image_info_df.columns if col != "Image"]]
                 
-                        #------------------------------------------------------------------------
-                        tab1, tab2, tab3 = st.tabs(["**Images**", "**Information**","**results**", ])
-                        #------------------------------------------------------------------------
-                        with tab1:
+                    #------------------------------------------------------------------------
+                    tab1, tab2, tab3 = st.tabs(["**Images**", "**Information**","**results**", ])
+                    #------------------------------------------------------------------------
+                    with tab1:
                             with st.container(border=True):
         
                                 for uploaded_file in uploaded_files:
@@ -617,24 +626,77 @@ with col1:
                                                              
                                     with col3: 
 
-                                        st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Contoured Image | OTSU Filetr</span></div>',unsafe_allow_html=True,)    
+                                        st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Contoured Image | Canny Edge Filetr</span></div>',unsafe_allow_html=True,)    
                                                                
                                         canny_edges = cv2.Canny(blurred, 80, 170)                                                               # Canny Edge Detection
                                         canny_contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)             # Find contours for Canny Edge Detection
                                         img_with_canny_contours = cv2.drawContours(img_array.copy(), canny_contours, -1, (255, 0, 0), 2)        # Draw contours for Canny
                                         st.image(img_with_canny_contours, caption="Canny Edge Filter: Detected Particles")    
-                    
-                                        st.write('------------------')  
                                                         
-                        #------------------------------------------------------------------------
-                        with tab2:
+                    #------------------------------------------------------------------------
+                    with tab2:
                             with st.container(border=True):
             
                                     st.dataframe(st.session_state.image_info_df, use_container_width=True)
-                                    st.sidebar.divider()
-                                    csv_data = convert_df_to_csv(st.session_state.image_info_df)                            
-                                    st.download_button(label="**:blue[📥  Download | Image Information (.csv)]**",data=csv_data,file_name="particle_image_analysis.csv",mime="text/csv",key="csv_download") 
+                            
+                            st.divider()        
+                            csv_data = convert_df_to_csv(st.session_state.image_info_df)                            
+                            st.download_button(label="**:blue[📥  Download | Image Information (.csv)]**",data=csv_data,file_name="particle_image_analysis.csv",mime="text/csv",key="csv_download") 
                     
                         
+                    #------------------------------------------------------------------------
+                    with tab3:
+                            with st.container(border=True):
+        
+                                if not st.session_state.image_info_df.empty:
+                                    result_rows = []
 
+                                    for idx, row in st.session_state.image_info_df.iterrows():
+                                        otsu_aspect = row.get("OTSU Aspect Ratio", 0)
+                                        canny_aspect = row.get("Canny Aspect Ratio", 0)
+                                        otsu_sphere = row.get("OTSU Average Sphericity", 0)
+                                        canny_sphere = row.get("Canny Average Sphericity", 0)
+                                        otsu_ratio = row.get("OTSU Valid/Total Contours", "0/0")
+                                        canny_ratio = row.get("Canny Valid/Total Contours", "0/0")
 
+                                        def status(val, threshold):
+                                            return "OK" if val > threshold else "NOT OK"
+
+                                        try:
+                                            otsu_valid, otsu_total = map(int, otsu_ratio.split("/"))
+                                            otsu_ratio_val = round(otsu_valid / otsu_total, 2) if otsu_total > 0 else 0
+                                        except:
+                                            otsu_ratio_val = 0
+
+                                        try:
+                                            canny_valid, canny_total = map(int, canny_ratio.split("/"))
+                                            canny_ratio_val = round(canny_valid / canny_total, 2) if canny_total > 0 else 0
+                                        except:
+                                            canny_ratio_val = 0
+
+                                        row_result = {
+                                            "Image No.": idx + 1,
+                                            "Image Name": row["Image"],
+                                            "OTSU Aspect Ratio": round(otsu_aspect, 3),
+                                            "OTSU Aspect Status": status(otsu_aspect, aspect_ratio_threshold),
+                                            "Canny Aspect Ratio": round(canny_aspect, 3),
+                                            "Canny Aspect Status": status(canny_aspect, aspect_ratio_threshold),
+                                            "OTSU Sphericity": round(otsu_sphere, 3),
+                                            "OTSU Sphericity Status": status(otsu_sphere, sphericity_threshold),
+                                            "Canny Sphericity": round(canny_sphere, 3),
+                                            "Canny Sphericity Status": status(canny_sphere, sphericity_threshold),
+                                            "OTSU Particle Ratio": otsu_ratio_val,
+                                            "OTSU Particle Ratio Status": status(otsu_ratio_val, particle_ratio_threshold)}
+                                        result_rows.append(row_result)
+
+                                    results_df = pd.DataFrame(result_rows)
+                                    status_cols = ["OTSU Aspect Status","Canny Aspect Status","OTSU Sphericity Status","Canny Sphericity Status","OTSU Particle Ratio Status"]
+                                    styled_df = results_df.style.applymap(highlight_status, subset=status_cols)
+                                    st.dataframe(styled_df, use_container_width=True)
+
+                                    st.divider()
+                                    result_csv = results_df.to_csv(index=False).encode("utf-8")
+                                    st.download_button(label="**:blue[📥  Download | Classification Result (.csv)]**",data=result_csv,file_name="image_classification_result.csv",mime="text/csv",key="download_result")
+                                
+                                else:
+                                    st.warning("No data available for analysis. Please upload images first.")
