@@ -47,7 +47,7 @@ st.markdown("""
         background-color: #FFFFFF; 
         border-radius: 5px;
         border: 1px solid #007BFF;
-        margin: 0px;
+        margin: 5px;
         padding: 5px 10px;
     }
     </style>
@@ -554,12 +554,22 @@ with st.popover("**:red[App Capabilities]**", disabled=False, use_container_widt
     
 #---------------------------------------------------------------------------------------------------------------------------------
 
-col1, col2 = st.columns((0.2,0.8))
+col1, col2 = st.columns((0.15,0.85))
 with col1:
     with st.container(border=True):      
     
         uploaded_files = st.file_uploader("**:blue[Choose Images]**", type=["jpg", "png", "jpeg", "tiff"], accept_multiple_files=True)
         if uploaded_files:
+            
+            st.success("Image loaded successfully!")
+            st.divider()
+            
+            stats_expander = st.expander("**:blue[:hammer_and_wrench: Hyperparameters]**", expanded=False) 
+            with stats_expander:
+
+                aspect_ratio_threshold = st.slider("**aspect_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.8)
+                sphericity_threshold = st.slider("**sphericity_threshold**", min_value=0.01, max_value=0.99, value=0.7)
+                particle_ratio_threshold = st.slider("**particle_ratio_threshold**", min_value=0.01, max_value=0.99, value=0.5)
     
             with col2: 
     
@@ -576,58 +586,55 @@ with col1:
 
                         st.session_state.image_info_df = pd.DataFrame(st.session_state.analysis_results)
                         st.session_state.image_info_df = st.session_state.image_info_df[["Image"] + [col for col in st.session_state.image_info_df.columns if col != "Image"]]
-        
+                
                         #------------------------------------------------------------------------
-                        tab1, tab2 = st.tabs(["**Images**", "**Information**"])
+                        tab1, tab2, tab3 = st.tabs(["**Images**", "**Information**","**results**", ])
                         #------------------------------------------------------------------------
                         with tab1:
                             with st.container(border=True):
         
                                 for uploaded_file in uploaded_files:
             
-                                    col1, col2 = st.columns((0.4,0.6))
+                                    col1, col2, col3 = st.columns(3)
                                     with col1:
                         
                                         st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Original Image</span></div>',unsafe_allow_html=True,)
-                                        with st.container(border=True):
                             
-                                            image = Image.open(uploaded_file)
-                                            img_array = np.array(image)
-                                            st.image(img_array, caption=f"Image: {uploaded_file.name}")
+                                        image = Image.open(uploaded_file)
+                                        img_array = np.array(image)
+                                        st.image(img_array, caption=f"Image: {uploaded_file.name}")
                     
                                     with col2:                     
                                     
-                                        st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Contoured Image</span></div>',unsafe_allow_html=True,)       
+                                        st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Contoured Image | OTSU Filetr</span></div>',unsafe_allow_html=True,)       
                                          
-                                        subcol1,subcol2 = st.columns(2)
-                                        with subcol1:
-                                            with st.container(border=True):
-                        
-                                                gray_image = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)                                                # Convert the image to grayscale
-                                                blurred = cv2.GaussianBlur(gray_image, (5, 5), 0) 
-                                                _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)                # OTSU Thresholding
-                                                otsu_contours, _ = cv2.findContours(otsu_thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)                # Find contours for OTSU Threshold
-                                                img_with_otsu_contours = cv2.drawContours(img_array.copy(), otsu_contours, -1, (0, 255, 0), 2)          # Draw contours for OTSU 
-                                                st.image(img_with_otsu_contours, caption="OTSU Filter: Detected Particles")
-                        
-                                        with subcol2:
-                                            with st.container(border=True):                        
-                        
-                                                canny_edges = cv2.Canny(blurred, 80, 170)                                                               # Canny Edge Detection
-                                                canny_contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)             # Find contours for Canny Edge Detection
-                                                img_with_canny_contours = cv2.drawContours(img_array.copy(), canny_contours, -1, (255, 0, 0), 2)        # Draw contours for Canny
-                                                st.image(img_with_canny_contours, caption="Canny Edge Filter: Detected Particles")    
+                                        gray_image = cv2.cvtColor(img_array, cv2.COLOR_BGR2GRAY)                                                # Convert the image to grayscale
+                                        blurred = cv2.GaussianBlur(gray_image, (5, 5), 0) 
+                                        _, otsu_thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)                # OTSU Thresholding
+                                        otsu_contours, _ = cv2.findContours(otsu_thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)                # Find contours for OTSU Threshold
+                                        img_with_otsu_contours = cv2.drawContours(img_array.copy(), otsu_contours, -1, (0, 255, 0), 2)          # Draw contours for OTSU 
+                                        st.image(img_with_otsu_contours, caption="OTSU Filter: Detected Particles")
+                                                             
+                                    with col3: 
+
+                                        st.markdown('<div class="centered-info"><span style="margin-left: 10px;">Contoured Image | OTSU Filetr</span></div>',unsafe_allow_html=True,)    
+                                                               
+                                        canny_edges = cv2.Canny(blurred, 80, 170)                                                               # Canny Edge Detection
+                                        canny_contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)             # Find contours for Canny Edge Detection
+                                        img_with_canny_contours = cv2.drawContours(img_array.copy(), canny_contours, -1, (255, 0, 0), 2)        # Draw contours for Canny
+                                        st.image(img_with_canny_contours, caption="Canny Edge Filter: Detected Particles")    
                     
-                                    st.write('------------------')  
+                                        st.write('------------------')  
                                                         
-                        #------------------------------------------------------------------------              
+                        #------------------------------------------------------------------------
                         with tab2:
                             with st.container(border=True):
             
-                                st.table(st.session_state.image_info_df)
-                                st.sidebar.divider()
-                                csv_data = convert_df_to_csv(st.session_state.image_info_df)
-                                st.sidebar.download_button(label="**:blue[📥  Download | Image Information (.csv)]**",data=csv_data,file_name="particle_image_analysis.csv",mime="text/csv",key="csv_download") 
+                                    st.dataframe(st.session_state.image_info_df, use_container_width=True)
+                                    st.sidebar.divider()
+                                    csv_data = convert_df_to_csv(st.session_state.image_info_df)                            
+                                    st.download_button(label="**:blue[📥  Download | Image Information (.csv)]**",data=csv_data,file_name="particle_image_analysis.csv",mime="text/csv",key="csv_download") 
                     
                         
+
 
